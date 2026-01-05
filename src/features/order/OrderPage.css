@@ -1,0 +1,30 @@
+.order-page {
+    /* Main container styles are handled by Layout */
+}
+
+.order-layout {
+    display: grid;
+    grid-template-columns: 1fr 400px;
+    gap: 2rem;
+    margin-top: 2rem;
+}
+
+.order-content {
+    /* Reserved for additional content if needed */
+    min-height: 100px;
+}
+
+.order-sidebar {
+    /* Sidebar for order summary */
+}
+
+@media (max-width: 1024px) {
+    .order-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .order-sidebar {
+        order: -1;
+        /* Move summary to top on mobile */
+    }
+}
