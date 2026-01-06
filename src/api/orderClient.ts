@@ -1,19 +1,55 @@
 import type { OrderPayload } from '../types';
+import type { Category } from '../types';
 
 /**
  * API client for order operations
- * Currently stubbed - replace with actual API calls when backend is ready
+ * Connects to Google Apps Script backend
  */
+
+// Get API URL from environment variables
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
 interface CreateOrderResponse {
     success: boolean;
     orderId: string;
+    editToken?: string;
     message: string;
 }
 
 interface LoadOrderResponse {
     success: boolean;
     order: OrderPayload | null;
+    message?: string;
+}
+
+interface CatalogueResponse {
+    success: boolean;
+    categories: Category[];
+    message?: string;
+}
+
+/**
+ * Fetch catalogue from Google Sheets via Apps Script
+ * @returns Promise with categories and products
+ */
+export async function fetchCatalogue(): Promise<CatalogueResponse> {
+    try {
+        if (!API_BASE_URL) {
+            console.warn('⚠️ API_BASE_URL not configured, using mock data');
+            throw new Error('API_BASE_URL not configured');
+        }
+
+        const response = await fetch(`${API_BASE_URL}?action=getCategories`);
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        return await response.json();
+    } catch (error) {
+        console.error('Failed to fetch catalogue:', error);
+        throw error;
+    }
 }
 
 /**
@@ -24,20 +60,36 @@ interface LoadOrderResponse {
 export async function createOrder(
     orderPayload: OrderPayload
 ): Promise<CreateOrderResponse> {
-    // TODO: Replace with actual API call
-    // Example: const response = await fetch('/api/orders', { method: 'POST', body: JSON.stringify(orderPayload) })
+    try {
+        if (!API_BASE_URL) {
+            console.error('❌ API_BASE_URL not configured');
+            throw new Error('API not configured. Please set VITE_API_BASE_URL in .env');
+        }
 
-    console.log('📦 Order payload being submitted:', orderPayload);
+        console.log('📦 Submitting order to Apps Script:', orderPayload);
 
-    // Simulate network delay
-    await new Promise((resolve) => setTimeout(resolve, 800));
+        const response = await fetch(API_BASE_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'text/plain', // Apps Script compatibility
+            },
+            body: JSON.stringify({
+                action: 'createOrder',
+                payload: orderPayload,
+            }),
+        });
 
-    // Mock successful response
-    return {
-        success: true,
-        orderId: `ORD-${Date.now()}`,
-        message: 'Order created successfully',
-    };
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const result = await response.json();
+        console.log('✅ Order created:', result);
+        return result;
+    } catch (error) {
+        console.error('Failed to create order:', error);
+        throw error;
+    }
 }
 
 /**
@@ -46,40 +98,111 @@ export async function createOrder(
  * @returns Promise with the order data
  */
 export async function loadOrder(orderId: string): Promise<LoadOrderResponse> {
-    // TODO: Replace with actual API call
-    // Example: const response = await fetch(`/api/orders/${orderId}`)
+    try {
+        if (!API_BASE_URL) {
+            throw new Error('API_BASE_URL not configured');
+        }
 
-    console.log('📄 Loading order:', orderId);
+        console.log('📄 Loading order:', orderId);
 
-    // Simulate network delay
-    await new Promise((resolve) => setTimeout(resolve, 500));
+        const response = await fetch(
+            `${API_BASE_URL}?action=getOrder&orderId=${encodeURIComponent(orderId)}`
+        );
 
-    // Mock response - in production, this would return actual order data
-    return {
-        success: false,
-        order: null,
-    };
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        return await response.json();
+    } catch (error) {
+        console.error('Failed to load order:', error);
+        return {
+            success: false,
+            order: null,
+            message: error instanceof Error ? error.message : 'Failed to load order',
+        };
+    }
+}
+
+/**
+ * Load an existing order by edit token
+ * @param token - The edit token from email link
+ * @returns Promise with the order data
+ */
+export async function loadOrderByToken(token: string): Promise<LoadOrderResponse> {
+    try {
+        if (!API_BASE_URL) {
+            throw new Error('API_BASE_URL not configured');
+        }
+
+        console.log('🔑 Loading order by token');
+
+        const response = await fetch(
+            `${API_BASE_URL}?action=getOrderByToken&token=${encodeURIComponent(token)}`
+        );
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const result = await response.json();
+
+        if (result.success && result.order) {
+            console.log('✅ Order loaded from edit link');
+        }
+
+        return result;
+    } catch (error) {
+        console.error('Failed to load order by token:', error);
+        return {
+            success: false,
+            order: null,
+            message: error instanceof Error ? error.message : 'Failed to load order',
+        };
+    }
 }
 
 /**
  * Update an existing order
  * @param orderId - The order ID to update
  * @param orderPayload - The updated order data
+ * @param editToken - Optional edit token for verification
  * @returns Promise with the update response
  */
 export async function updateOrder(
     orderId: string,
-    orderPayload: OrderPayload
+    orderPayload: OrderPayload,
+    editToken?: string
 ): Promise<CreateOrderResponse> {
-    // TODO: Replace with actual API call when edit functionality is implemented
+    try {
+        if (!API_BASE_URL) {
+            throw new Error('API_BASE_URL not configured');
+        }
 
-    console.log('✏️ Updating order:', orderId, orderPayload);
+        console.log('✏️ Updating order:', orderId);
 
-    await new Promise((resolve) => setTimeout(resolve, 800));
+        const response = await fetch(API_BASE_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'text/plain',
+            },
+            body: JSON.stringify({
+                action: 'updateOrder',
+                orderId: orderId,
+                payload: orderPayload,
+                editToken: editToken,
+            }),
+        });
 
-    return {
-        success: true,
-        orderId,
-        message: 'Order updated successfully',
-    };
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const result = await response.json();
+        console.log('✅ Order updated:', result);
+        return result;
+    } catch (error) {
+        console.error('Failed to update order:', error);
+        throw error;
+    }
 }

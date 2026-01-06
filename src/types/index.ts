@@ -3,11 +3,14 @@
  */
 
 export interface Product {
-  id: string;
-  name: string;
-  description: string;
-  size: string;
-  unitPrice: number;
+  id: string;              // Code (A1, A2, B1, etc.)
+  name: string;            // Item name
+  description: string;     // Description/Notes
+  pricing2025: number;     // Current pricing (Pricing 2025)
+  imageUrl?: string;       // Image URL
+  exampleUrl?: string;     // Example image URL
+  artworkTemplateUrl?: string; // Artwork template URL
+  notes?: string;          // Additional notes
 }
 
 export interface Category {
@@ -21,8 +24,7 @@ export interface OrderLineItem {
   categoryName: string;
   productId: string;
   productName: string;
-  size: string;
-  unitPrice: number;
+  unitPrice: number;     // Keep as unitPrice for order records
   quantity: number;
   lineTotal: number;
 }

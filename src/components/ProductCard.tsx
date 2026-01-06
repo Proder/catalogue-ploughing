@@ -7,7 +7,7 @@ interface ProductCardProps {
 }
 
 export function ProductCard({ product, quantity, onQuantityChange }: ProductCardProps) {
-    const lineTotal = quantity * product.unitPrice;
+    const lineTotal = quantity * product.pricing2025;
     const isSelected = quantity > 0;
 
     const handleIncrement = () => {
@@ -31,8 +31,8 @@ export function ProductCard({ product, quantity, onQuantityChange }: ProductCard
 
     return (
         <div className={`group relative p-6 rounded-2xl border-2 transition-all duration-200 ${isSelected
-                ? 'bg-primary-50/50 border-primary-300 shadow-lg shadow-primary-500/10'
-                : 'bg-white border-neutral-200 hover:border-neutral-300 hover:shadow-md'
+            ? 'bg-primary-50/50 border-primary-300 shadow-lg shadow-primary-500/10'
+            : 'bg-white border-neutral-200 hover:border-neutral-300 hover:shadow-md'
             }`}>
             {/* Selected Badge */}
             {isSelected && (
@@ -50,20 +50,13 @@ export function ProductCard({ product, quantity, onQuantityChange }: ProductCard
                         {product.name}
                     </h3>
                     <div className="flex-shrink-0 px-3 py-1.5 rounded-lg bg-primary-500 text-white font-bold text-sm shadow-sm">
-                        ${product.unitPrice.toFixed(2)}
+                        €{product.pricing2025.toFixed(2)}
                     </div>
                 </div>
 
-                <p className="text-sm text-neutral-600 leading-relaxed mb-4">
+                <p className="text-sm text-neutral-600 leading-relaxed">
                     {product.description}
                 </p>
-
-                <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-neutral-100 text-neutral-700 text-xs font-semibold">
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
-                    </svg>
-                    Size: {product.size}
-                </div>
             </div>
 
             {/* Quantity Controls */}
@@ -73,8 +66,8 @@ export function ProductCard({ product, quantity, onQuantityChange }: ProductCard
                         onClick={handleDecrement}
                         disabled={quantity === 0}
                         className={`w-11 h-11 rounded-xl flex items-center justify-center text-lg font-bold transition-all ${quantity === 0
-                                ? 'bg-neutral-100 text-neutral-400 cursor-not-allowed'
-                                : 'bg-neutral-100 text-neutral-700 hover:bg-primary-500 hover:text-white active:scale-95'
+                            ? 'bg-neutral-100 text-neutral-400 cursor-not-allowed'
+                            : 'bg-neutral-100 text-neutral-700 hover:bg-primary-500 hover:text-white active:scale-95'
                             }`}
                         aria-label="Decrease quantity"
                     >
