@@ -19,12 +19,12 @@ export function CategoryTabs({ categories, activeCategoryId, onCategoryChange }:
                     </div>
                     <div>
                         <h2 className="section-title">Browse by Category</h2>
-                        <p className="section-subtitle text-sm">Select a category to view available products</p>
+                        <p className="section-subtitle text-sm">Select a category to view products</p>
                     </div>
                 </div>
             </div>
 
-            {/* Category Buttons */}
+            {/* Category Buttons - No product counts */}
             <div className="flex flex-wrap gap-3">
                 {categories.map((category) => {
                     const isActive = activeCategoryId === category.id;
@@ -32,34 +32,15 @@ export function CategoryTabs({ categories, activeCategoryId, onCategoryChange }:
                         <button
                             key={category.id}
                             onClick={() => onCategoryChange(category.id)}
-                            className={`group relative px-6 py-3.5 rounded-xl font-semibold text-sm transition-all duration-200 ${isActive
+                            className={`px-6 py-3.5 rounded-xl font-semibold text-sm transition-all duration-200 ${isActive
                                     ? 'bg-primary-500 text-white shadow-lg shadow-primary-500/25'
                                     : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200 hover:shadow-md'
                                 }`}
                         >
-                            <span className="flex items-center gap-2">
-                                {category.name}
-                                <span className={`px-2 py-0.5 rounded-md text-xs font-bold ${isActive
-                                        ? 'bg-white/20 text-white'
-                                        : 'bg-neutral-200 text-neutral-600'
-                                    }`}>
-                                    {category.products.length}
-                                </span>
-                            </span>
+                            {category.name}
                         </button>
                     );
                 })}
-            </div>
-
-            {/* Active Category Info */}
-            <div className="mt-6 pt-6 border-t border-neutral-100">
-                <p className="text-sm text-neutral-600">
-                    Showing <span className="font-semibold text-neutral-900">
-                        {categories.find(c => c.id === activeCategoryId)?.products.length || 0} products
-                    </span> in <span className="font-semibold text-primary-600">
-                        {categories.find(c => c.id === activeCategoryId)?.name}
-                    </span>
-                </p>
             </div>
         </section>
     );

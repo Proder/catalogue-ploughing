@@ -1,13 +1,15 @@
-import type { OrderPayload } from '../types';
-import type { Category } from '../types';
+import type { OrderPayload, Category, Product } from '../types';
 
 /**
- * API client for order operations
+ * API client for order and catalogue operations
  * Connects to Google Apps Script backend
  */
 
-// Get API URL from environment variables
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+
+// ========================================
+// RESPONSE TYPES
+// ========================================
 
 interface CreateOrderResponse {
     success: boolean;
@@ -28,9 +30,88 @@ interface CatalogueResponse {
     message?: string;
 }
 
+interface CategoriesResponse {
+    success: boolean;
+    categories: { id: string; name: string }[];
+    message?: string;
+}
+
+interface ProductsResponse {
+    success: boolean;
+    products: Product[];
+    pagination: {
+        page: number;
+        limit: number;
+        total: number;
+        hasMore: boolean;
+        totalPages: number;
+    };
+    message?: string;
+}
+
+// ========================================
+// CATALOGUE FUNCTIONS
+// ========================================
+
 /**
- * Fetch catalogue from Google Sheets via Apps Script
- * @returns Promise with categories and products
+ * Fetch categories only (without products)
+ */
+export async function fetchCategories(): Promise<CategoriesResponse> {
+    try {
+        if (!API_BASE_URL) {
+            console.warn('⚠️ API_BASE_URL not configured');
+            throw new Error('API_BASE_URL not configured');
+        }
+
+        const response = await fetch(`${API_BASE_URL}?action=getCategories`);
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        return await response.json();
+    } catch (error) {
+        console.error('Failed to fetch categories:', error);
+        throw error;
+    }
+}
+
+/**
+ * Fetch products with pagination
+ */
+export async function fetchProducts(
+    categoryName: string,
+    page: number = 1,
+    limit: number = 10
+): Promise<ProductsResponse> {
+    try {
+        if (!API_BASE_URL) {
+            console.warn('⚠️ API_BASE_URL not configured');
+            throw new Error('API_BASE_URL not configured');
+        }
+
+        const params = new URLSearchParams({
+            action: 'getProducts',
+            categoryId: categoryName,
+            page: page.toString(),
+            limit: limit.toString(),
+        });
+
+        const response = await fetch(`${API_BASE_URL}?${params}`);
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        return await response.json();
+    } catch (error) {
+        console.error('Failed to fetch products:', error);
+        throw error;
+    }
+}
+
+/**
+ * Fetch full catalogue (legacy - for backwards compatibility)
  */
 export async function fetchCatalogue(): Promise<CatalogueResponse> {
     try {
@@ -39,7 +120,7 @@ export async function fetchCatalogue(): Promise<CatalogueResponse> {
             throw new Error('API_BASE_URL not configured');
         }
 
-        const response = await fetch(`${API_BASE_URL}?action=getCategories`);
+        const response = await fetch(`${API_BASE_URL}?action=getCatalogue`);
 
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -52,10 +133,12 @@ export async function fetchCatalogue(): Promise<CatalogueResponse> {
     }
 }
 
+// ========================================
+// ORDER FUNCTIONS
+// ========================================
+
 /**
  * Submit a new order
- * @param orderPayload - The order data to submit
- * @returns Promise with the order creation response
  */
 export async function createOrder(
     orderPayload: OrderPayload
@@ -71,7 +154,7 @@ export async function createOrder(
         const response = await fetch(API_BASE_URL, {
             method: 'POST',
             headers: {
-                'Content-Type': 'text/plain', // Apps Script compatibility
+                'Content-Type': 'text/plain',
             },
             body: JSON.stringify({
                 action: 'createOrder',
@@ -94,8 +177,6 @@ export async function createOrder(
 
 /**
  * Load an existing order by ID
- * @param orderId - The order ID to load
- * @returns Promise with the order data
  */
 export async function loadOrder(orderId: string): Promise<LoadOrderResponse> {
     try {
@@ -126,8 +207,6 @@ export async function loadOrder(orderId: string): Promise<LoadOrderResponse> {
 
 /**
  * Load an existing order by edit token
- * @param token - The edit token from email link
- * @returns Promise with the order data
  */
 export async function loadOrderByToken(token: string): Promise<LoadOrderResponse> {
     try {
@@ -164,10 +243,6 @@ export async function loadOrderByToken(token: string): Promise<LoadOrderResponse
 
 /**
  * Update an existing order
- * @param orderId - The order ID to update
- * @param orderPayload - The updated order data
- * @param editToken - Optional edit token for verification
- * @returns Promise with the update response
  */
 export async function updateOrder(
     orderId: string,

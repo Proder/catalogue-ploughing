@@ -67,23 +67,22 @@ export function ConfirmationView({ orderPayload, onCreateAnother }: Confirmation
                     {orderPayload.lineItems.map((item) => (
                         <div
                             key={item.productId}
-                            className="grid grid-cols-2 md:grid-cols-5 gap-4 p-5 rounded-xl bg-neutral-50 items-center"
+                            className="grid grid-cols-2 md:grid-cols-4 gap-4 p-5 rounded-xl bg-neutral-50 items-center"
                         >
-                            <div className="col-span-2 md:col-span-2">
+                            <div className="col-span-2">
                                 <p className="font-bold text-neutral-900">{item.productName}</p>
-                                <p className="text-sm text-neutral-600">Size: {item.size}</p>
                             </div>
                             <div className="text-neutral-700">
                                 <span className="text-sm font-medium">Price:</span>
-                                <p className="font-semibold">${item.unitPrice.toFixed(2)}</p>
+                                <p className="font-semibold">€{item.unitPrice.toFixed(2)}</p>
                             </div>
                             <div className="text-neutral-700">
                                 <span className="text-sm font-medium">Qty:</span>
                                 <p className="font-semibold">{item.quantity}</p>
                             </div>
-                            <div className="text-right col-span-2 md:col-span-1">
-                                <span className="text-sm font-medium text-neutral-600 block">Total</span>
-                                <p className="text-lg font-bold text-primary-600">${item.lineTotal.toFixed(2)}</p>
+                            <div className="text-right col-span-2 md:col-span-4 mt-2 pt-2 border-t border-neutral-200">
+                                <span className="text-sm font-medium text-neutral-600">Total: </span>
+                                <span className="text-lg font-bold text-primary-600">€{item.lineTotal.toFixed(2)}</span>
                             </div>
                         </div>
                     ))}
@@ -96,15 +95,15 @@ export function ConfirmationView({ orderPayload, onCreateAnother }: Confirmation
                 <div className="max-w-sm ml-auto space-y-4">
                     <div className="flex justify-between py-3 border-b border-neutral-100">
                         <span className="text-neutral-600">Subtotal</span>
-                        <span className="font-bold text-neutral-900">${orderPayload.totals.subtotal.toFixed(2)}</span>
+                        <span className="font-bold text-neutral-900">€{orderPayload.totals.subtotal.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between py-3 border-b border-neutral-100">
                         <span className="text-neutral-600">Tax ({(orderPayload.totals.taxRate * 100).toFixed(0)}%)</span>
-                        <span className="font-bold text-neutral-900">${orderPayload.totals.taxAmount.toFixed(2)}</span>
+                        <span className="font-bold text-neutral-900">€{orderPayload.totals.taxAmount.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between py-4 border-t-2 border-neutral-200">
                         <span className="text-lg font-bold text-neutral-900">Grand Total</span>
-                        <span className="text-2xl font-bold text-primary-600">${orderPayload.totals.grandTotal.toFixed(2)}</span>
+                        <span className="text-2xl font-bold text-primary-600">€{orderPayload.totals.grandTotal.toFixed(2)}</span>
                     </div>
                 </div>
             </div>

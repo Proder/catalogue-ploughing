@@ -20,7 +20,7 @@ export function Layout({ children }: LayoutProps) {
                             </div>
                             <div>
                                 <h1 className="text-lg font-bold text-white tracking-tight">
-                                    Catalogue Portal
+                                    Catalogue Ploughing
                                 </h1>
                             </div>
                         </div>
@@ -53,7 +53,7 @@ export function Layout({ children }: LayoutProps) {
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4" />
                                     </svg>
                                 </div>
-                                <span className="font-semibold text-white">Catalogue Portal</span>
+                                <span className="font-semibold text-white">Catalogue Ploughing</span>
                             </div>
                             <p className="text-sm leading-relaxed">
                                 Streamline your ordering process with our modern catalogue management system.
