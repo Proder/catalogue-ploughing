@@ -1,5 +1,4 @@
 import type { UserInfo, ValidationErrors } from '../types';
-import './UserInfoForm.css';
 
 interface UserInfoFormProps {
     userInfo: UserInfo;
@@ -11,68 +10,97 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function UserInfoForm({ userInfo, validationErrors, onChange }: UserInfoFormProps) {
     return (
-        <section className="user-info-section">
-            <h3 className="section-title">Your Information</h3>
-            <div className="form-grid">
-                <div className="form-group">
-                    <label htmlFor="name" className="form-label">
-                        Name <span className="required">*</span>
+        <section className="card-elevated p-8 mb-10 slide-up">
+            {/* Header */}
+            <div className="mb-8">
+                <div className="flex items-center gap-3 mb-2">
+                    <div className="w-10 h-10 rounded-xl bg-primary-50 flex items-center justify-center">
+                        <svg className="w-5 h-5 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h2 className="section-title">Your Information</h2>
+                        <p className="section-subtitle text-sm">Please fill in your contact details</p>
+                    </div>
+                </div>
+            </div>
+
+            {/* Form Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Name */}
+                <div className="space-y-2">
+                    <label htmlFor="name" className="block text-sm font-semibold text-neutral-700">
+                        Full Name <span className="text-error-500">*</span>
                     </label>
                     <input
                         type="text"
                         id="name"
-                        className={`form-input ${validationErrors.name ? 'error' : ''}`}
+                        className={`input-field ${validationErrors.name ? 'input-error' : ''}`}
                         value={userInfo.name}
                         onChange={(e) => onChange('name', e.target.value)}
-                        placeholder="Enter your full name"
+                        placeholder="John Doe"
                     />
                     {validationErrors.name && (
-                        <span className="error-message">{validationErrors.name}</span>
+                        <p className="flex items-center gap-1.5 text-sm text-error-600 mt-1.5">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            {validationErrors.name}
+                        </p>
                     )}
                 </div>
 
-                <div className="form-group">
-                    <label htmlFor="email" className="form-label">
-                        Email <span className="required">*</span>
+                {/* Email */}
+                <div className="space-y-2">
+                    <label htmlFor="email" className="block text-sm font-semibold text-neutral-700">
+                        Email Address <span className="text-error-500">*</span>
                     </label>
                     <input
                         type="email"
                         id="email"
-                        className={`form-input ${validationErrors.email ? 'error' : ''}`}
+                        className={`input-field ${validationErrors.email ? 'input-error' : ''}`}
                         value={userInfo.email}
                         onChange={(e) => onChange('email', e.target.value)}
-                        placeholder="your.email@example.com"
+                        placeholder="john@company.com"
                     />
                     {validationErrors.email && (
-                        <span className="error-message">{validationErrors.email}</span>
+                        <p className="flex items-center gap-1.5 text-sm text-error-600 mt-1.5">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            {validationErrors.email}
+                        </p>
                     )}
                 </div>
 
-                <div className="form-group">
-                    <label htmlFor="company" className="form-label">
+                {/* Company */}
+                <div className="space-y-2">
+                    <label htmlFor="company" className="block text-sm font-semibold text-neutral-700">
                         Company/Organization
                     </label>
                     <input
                         type="text"
                         id="company"
-                        className="form-input"
+                        className="input-field"
                         value={userInfo.company || ''}
                         onChange={(e) => onChange('company', e.target.value)}
-                        placeholder="Your company (optional)"
+                        placeholder="Acme Inc. (optional)"
                     />
                 </div>
 
-                <div className="form-group">
-                    <label htmlFor="phone" className="form-label">
-                        Phone
+                {/* Phone */}
+                <div className="space-y-2">
+                    <label htmlFor="phone" className="block text-sm font-semibold text-neutral-700">
+                        Phone Number
                     </label>
                     <input
                         type="tel"
                         id="phone"
-                        className="form-input"
+                        className="input-field"
                         value={userInfo.phone || ''}
                         onChange={(e) => onChange('phone', e.target.value)}
-                        placeholder="Your phone number (optional)"
+                        placeholder="+1 (555) 000-0000 (optional)"
                     />
                 </div>
             </div>
