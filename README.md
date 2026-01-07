@@ -1,4 +1,45 @@
-# React + TypeScript + Vite
+# Catalogue Order Portal
+
+A comprehensive order management system built with React, TypeScript, Vite, and Google Apps Script.
+
+## 🎯 Features
+
+- **Product Catalogue**: Browse products organized by categories
+- **Order Management**: Create and edit orders with automatic email confirmations
+- **Google Sheets Backend**: Orders stored in Google Sheets with Apps Script API
+- **Order Details Formatting**: Automatic product-level breakdowns in a separate sheet
+
+## 📊 New: OrderDetails Sheet
+
+The system now automatically creates an **OrderDetails** sheet that formats each product from your orders into separate rows with spacing between orders. This makes it easy to:
+- Analyze individual product sales
+- Track customer purchase history
+- Export product-level data for reporting
+- Filter and sort by product, customer, or category
+
+### Example
+
+When you receive an order with multiple products in JSON format:
+```json
+[
+  {"productId":"A1","productName":"Flag Pole and Surround","unitPrice":475,"quantity":1},
+  {"productId":"A2","productName":"Flag & Pole","unitPrice":295,"quantity":1}
+]
+```
+
+The system automatically creates separate rows:
+```
+Order ID   | Customer | Product ID | Product Name           | Quantity | Price
+-----------|----------|------------|------------------------|----------|-------
+ORD-123456 | John Doe | A1         | Flag Pole and Surround | 1        | $475
+ORD-123456 | John Doe | A2         | Flag & Pole            | 1        | $295
+```
+
+📖 **Full Documentation**: See [IMPLEMENTATION_SUMMARY.md](./IMPLEMENTATION_SUMMARY.md) for complete details.
+
+---
+
+## React + TypeScript + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 

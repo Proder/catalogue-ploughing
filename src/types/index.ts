@@ -11,6 +11,8 @@ export interface Product {
   exampleUrl?: string;     // Example image URL
   artworkTemplateUrl?: string; // Artwork template URL
   notes?: string;          // Additional notes
+  size?: string;           // Product size (hidden from UI)
+  supplier?: string;       // Supplier name (hidden from UI)
 }
 
 export interface Category {
@@ -27,6 +29,8 @@ export interface OrderLineItem {
   unitPrice: number;     // Keep as unitPrice for order records
   quantity: number;
   lineTotal: number;
+  size?: string;         // Product size (from product)
+  supplier?: string;     // Supplier (from product)
 }
 
 export interface UserInfo {

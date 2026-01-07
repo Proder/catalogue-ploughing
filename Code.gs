@@ -28,6 +28,7 @@ function doGet(e) {
   try {
     switch (action) {
       case 'getCategories':
+      case 'getCatalogue':
         result = getCatalogue();
         break;
       case 'getOrder':
@@ -121,7 +122,7 @@ function getCatalogue() {
   const prodHeaders = prodData.shift(); // Remove header row
   
   // Build categories with products
-  // Products sheet columns: A=Code, B=Category, C=Item, D=ImageUrl, E=Pricing2025, F=Notes, G=ExampleUrl, H=ArtworkTemplateUrl, I=Active
+  // Products sheet columns: A=Code, B=Category, C=Item, D=Size, E=ImageUrl, F=Pricing2025, G=Notes, H=ExampleUrl, I=ArtworkTemplateUrl, J=Active, K=Supplier
   const categories = catData
     .filter(row => row[0]) // Skip empty rows
     .sort((a, b) => a[2] - b[2]) // Sort by SortOrder
@@ -133,19 +134,29 @@ function getCatalogue() {
       const products = prodData
         .filter(prodRow => {
           const productCategory = prodRow[1] ? prodRow[1].trim() : '';
-          const isActive = prodRow[8] === true || prodRow[8] === 'TRUE';
+          // Handle Active column - could be boolean TRUE or string "TRUE"
+          const activeValue = prodRow[9];
+          const isActive = activeValue === true || activeValue === 'TRUE' || activeValue === 'true';
+          
+          // Debug logging
+          Logger.log('Product: ' + prodRow[0] + ', Category: "' + productCategory + '", Active: ' + activeValue + ' (type: ' + typeof activeValue + '), Match: ' + (productCategory === categoryName && isActive));
+          
           return productCategory === categoryName && isActive;
         })
         .map(prodRow => ({
-          id: prodRow[0],                    // Code (A1, B1, etc.)
-          name: prodRow[2],                  // Item name
-          description: prodRow[5] || prodRow[2], // Notes or Item name as fallback
-          pricing2025: parseFloat(prodRow[4]) || 0,  // Pricing2025 (current price)
-          imageUrl: prodRow[3] || undefined,       // ImageUrl
-          exampleUrl: prodRow[6] || undefined,     // ExampleUrl
-          artworkTemplateUrl: prodRow[7] || undefined, // ArtworkTemplateUrl
-          notes: prodRow[5] || undefined       // Notes
+          id: prodRow[0],                    // Code (A column)
+          name: prodRow[2],                  // Item name (C column)
+          description: prodRow[6] || prodRow[2], // Notes or Item name as fallback
+          pricing2025: parseFloat(prodRow[5]) || 0,  // Pricing2025 (F column)
+          imageUrl: prodRow[4] || undefined,       // ImageUrl (E column)
+          exampleUrl: prodRow[7] || undefined,     // ExampleUrl (H column)
+          artworkTemplateUrl: prodRow[8] || undefined, // ArtworkTemplateUrl (I column)
+          notes: prodRow[6] || undefined,       // Notes (G column)
+          size: prodRow[3] || undefined,        // Size (D column) - hidden from user
+          supplier: prodRow[10] || undefined    // Supplier (K column) - hidden from user
         }));
+      
+      Logger.log('Category: ' + categoryName + ', Products found: ' + products.length);
       
       return {
         id: categoryId,
@@ -191,6 +202,13 @@ function createOrder(payload) {
   ];
   
   sheet.appendRow(row);
+  
+  // Add order to OrderDetails sheet
+  try {
+    addOrderToDetailsSheet(payload, orderId);
+  } catch (detailsError) {
+    Logger.log('Failed to add to OrderDetails sheet: ' + detailsError.toString());
+  }
   
   // Send confirmation email
   try {
@@ -345,6 +363,13 @@ function updateOrder(orderId, payload, editToken) {
     JSON.stringify(payload.lineItems),
     existingEditToken  // Keep the same edit token
   ]]);
+  
+  // Update OrderDetails sheet
+  try {
+    updateOrderInDetailsSheet(payload, orderId);
+  } catch (detailsError) {
+    Logger.log('Failed to update OrderDetails sheet: ' + detailsError.toString());
+  }
   
   // Send update confirmation email
   try {
@@ -527,4 +552,224 @@ function sendUpdateConfirmation(payload, orderId, editToken) {
     subject: `Order Updated #${orderId}`,
     htmlBody: htmlBody
   });
+}
+
+
+// ========================================
+// ORDER DETAILS SHEET FORMATTING
+// ========================================
+
+/**
+ * Create or get the OrderDetails sheet
+ */
+function getOrCreateOrderDetailsSheet() {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  let detailsSheet = ss.getSheetByName('OrderDetails');
+  
+  if (!detailsSheet) {
+    detailsSheet = ss.insertSheet('OrderDetails');
+    
+    // Set up headers
+    const headers = [
+      'Order ID',
+      'Order Date',
+      'Customer Name',
+      'Email',
+      'Company',
+      'Phone',
+      'Category Name',
+      'Product ID',
+      'Product Name',
+      'Size',
+      'Supplier',
+      'Unit Price',
+      'Quantity'
+    ];
+    
+    const headerRange = detailsSheet.getRange(1, 1, 1, headers.length);
+    headerRange.setValues([headers]);
+    headerRange.setFontWeight('bold');
+    headerRange.setBackground('#667eea');
+    headerRange.setFontColor('#ffffff');
+    
+    // Freeze header row
+    detailsSheet.setFrozenRows(1);
+    
+    // Auto-resize columns
+    for (let i = 1; i <= headers.length; i++) {
+      detailsSheet.autoResizeColumn(i);
+    }
+  }
+  
+  return detailsSheet;
+}
+
+/**
+ * Add order line items to OrderDetails sheet
+ * This is called automatically when an order is created
+ */
+function addOrderToDetailsSheet(orderData, orderId) {
+  const detailsSheet = getOrCreateOrderDetailsSheet();
+  const lineItems = orderData.lineItems;
+  
+  // Prepare rows for each line item
+  const rows = lineItems.map(item => [
+    orderId,
+    orderData.timestamp || new Date().toISOString(),
+    orderData.userInfo.name,
+    orderData.userInfo.email,
+    orderData.userInfo.company || '',
+    orderData.userInfo.phone || '',
+    item.categoryName || '',
+    item.productId || '',
+    item.productName,
+    item.size || '',
+    item.supplier || '',
+    item.unitPrice,
+    item.quantity
+  ]);
+  
+  
+  // Append all product rows
+  if (rows.length > 0) {
+    const startRow = detailsSheet.getLastRow() + 1;
+    
+    // Add product rows
+    detailsSheet.getRange(startRow, 1, rows.length, rows[0].length).setValues(rows);
+    
+    // Apply alternating colors to make orders visually distinct (before adding spacing)
+    const dataRange = detailsSheet.getRange(startRow, 1, rows.length, rows[0].length);
+    dataRange.setBackground('#f7fafc');
+    
+    // Add an empty row after this order for spacing using getRange instead of appendRow
+    const spacingRow = startRow + rows.length;
+    const emptyRow = new Array(13).fill(''); // 13 columns of empty strings
+    detailsSheet.getRange(spacingRow, 1, 1, 13).setValues([emptyRow]);
+  }
+}
+
+/**
+ * Update order details in OrderDetails sheet
+ * Removes old entries and adds new ones
+ */
+function updateOrderInDetailsSheet(orderData, orderId) {
+  const detailsSheet = getOrCreateOrderDetailsSheet();
+  const data = detailsSheet.getDataRange().getValues();
+  
+  // Find and delete existing rows for this orderId
+  let rowsToDelete = [];
+  for (let i = data.length - 1; i >= 1; i--) { // Start from bottom, skip header
+    if (data[i][0] === orderId) {
+      rowsToDelete.push(i + 1); // +1 because sheet rows are 1-indexed
+    }
+  }
+  
+  // Delete rows (must delete from bottom to top to maintain indices)
+  rowsToDelete.sort((a, b) => b - a);
+  rowsToDelete.forEach(rowIndex => {
+    detailsSheet.deleteRow(rowIndex);
+  });
+  
+  // Also remove the spacing row if it exists
+  if (rowsToDelete.length > 0) {
+    const lastDeletedRow = rowsToDelete[rowsToDelete.length - 1];
+    const checkRow = detailsSheet.getRange(lastDeletedRow, 1).getValue();
+    if (checkRow === '') {
+      detailsSheet.deleteRow(lastDeletedRow);
+    }
+  }
+  
+  // Add updated order
+  addOrderToDetailsSheet(orderData, orderId);
+}
+
+/**
+ * Regenerate entire OrderDetails sheet from Orders sheet
+ * Useful for backfilling existing orders
+ */
+function regenerateOrderDetailsSheet() {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const ordersSheet = ss.getSheetByName(ORDERS_SHEET);
+  
+  // Delete existing OrderDetails sheet if it exists
+  const existingSheet = ss.getSheetByName('OrderDetails');
+  if (existingSheet) {
+    ss.deleteSheet(existingSheet);
+  }
+  
+  // Create new OrderDetails sheet
+  const detailsSheet = getOrCreateOrderDetailsSheet();
+  
+  // Get all orders
+  const ordersData = ordersSheet.getDataRange().getValues();
+  ordersData.shift(); // Remove header
+  
+  // Build all rows in memory with spacing
+  const allRows = [];
+  
+  ordersData.forEach((row, index) => {
+    if (!row[0]) return; // Skip empty rows
+    
+    const orderId = row[0];
+    const orderData = {
+      timestamp: row[1],
+      userInfo: {
+        name: row[2],
+        email: row[3],
+        company: row[4],
+        phone: row[5]
+      },
+      lineItems: JSON.parse(row[11]),
+      totals: {
+        subtotal: row[6],
+        taxRate: row[7],
+        taxAmount: row[8],
+        grandTotal: row[9]
+      }
+    };
+    
+    // Add rows for each line item
+    orderData.lineItems.forEach(item => {
+      allRows.push([
+        orderId,
+        orderData.timestamp || new Date().toISOString(),
+        orderData.userInfo.name,
+        orderData.userInfo.email,
+        orderData.userInfo.company || '',
+        orderData.userInfo.phone || '',
+        item.categoryName || '',
+        item.productId || '',
+        item.productName,
+        item.size || '',
+        item.supplier || '',
+        item.unitPrice,
+        item.quantity
+      ]);
+    });
+    
+    // Add spacing row after this order (empty row with 13 columns)
+    allRows.push(new Array(13).fill(''));
+  });
+  
+  // Write all rows at once
+  if (allRows.length > 0) {
+    detailsSheet.getRange(2, 1, allRows.length, 13).setValues(allRows);
+    
+    // Apply background color to product rows (skip spacing rows)
+    let rowIndex = 2; // Start after header
+    ordersData.forEach(orderRow => {
+      if (!orderRow[0]) return;
+      
+      const lineItemsCount = JSON.parse(orderRow[11]).length;
+      
+      // Color the product rows
+      if (lineItemsCount > 0) {
+        detailsSheet.getRange(rowIndex, 1, lineItemsCount, 13).setBackground('#f7fafc');
+        rowIndex += lineItemsCount + 1; // Skip products + spacing row
+      }
+    });
+  }
+  
+  Logger.log('OrderDetails sheet regenerated successfully');
+  return { success: true, message: 'OrderDetails sheet regenerated' };
 }

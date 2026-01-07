@@ -166,6 +166,8 @@ export function OrderPage() {
                         unitPrice: product.pricing2025,
                         quantity,
                         lineTotal: quantity * product.pricing2025,
+                        size: product.size,
+                        supplier: product.supplier,
                     });
                 }
             });
