@@ -410,6 +410,13 @@ function createOrder(payload) {
     Logger.log('Failed to add to OrderDetails sheet: ' + detailsError.toString());
   }
   
+  // Update SupplierSummary sheet
+  try {
+    updateSupplierSummarySheet();
+  } catch (summaryError) {
+    Logger.log('Failed to update SupplierSummary sheet: ' + summaryError.toString());
+  }
+  
   // Send confirmation email
   try {
     sendOrderConfirmation(payload, orderId, editToken);
@@ -569,6 +576,13 @@ function updateOrder(orderId, payload, editToken) {
     updateOrderInDetailsSheet(payload, orderId);
   } catch (detailsError) {
     Logger.log('Failed to update OrderDetails sheet: ' + detailsError.toString());
+  }
+  
+  // Update SupplierSummary sheet
+  try {
+    updateSupplierSummarySheet();
+  } catch (summaryError) {
+    Logger.log('Failed to update SupplierSummary sheet: ' + summaryError.toString());
   }
   
   // Send update confirmation email
@@ -971,5 +985,183 @@ function regenerateOrderDetailsSheet() {
   }
   
   Logger.log('OrderDetails sheet regenerated successfully');
+  
+  // Also update SupplierSummary sheet
+  try {
+    updateSupplierSummarySheet();
+  } catch (summaryError) {
+    Logger.log('Failed to update SupplierSummary sheet: ' + summaryError.toString());
+  }
+  
   return { success: true, message: 'OrderDetails sheet regenerated' };
+}
+
+
+// ========================================
+// SUPPLIER SUMMARY SHEET
+// ========================================
+
+/**
+ * Create or get the SupplierSummary sheet
+ * This sheet aggregates products by supplier with total quantities
+ */
+function getOrCreateSupplierSummarySheet() {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  let summarySheet = ss.getSheetByName('SupplierSummary');
+  
+  if (!summarySheet) {
+    summarySheet = ss.insertSheet('SupplierSummary');
+    
+    // Set up headers
+    const headers = [
+      'Supplier',
+      'Product ID',
+      'Product Name',
+      'Total Quantity',
+      'Unit Price'
+    ];
+    
+    const headerRange = summarySheet.getRange(1, 1, 1, headers.length);
+    headerRange.setValues([headers]);
+    headerRange.setFontWeight('bold');
+    headerRange.setBackground('#36656b');
+    headerRange.setFontColor('#ffffff');
+    
+    // Freeze header row
+    summarySheet.setFrozenRows(1);
+    
+    // Auto-resize columns
+    for (let i = 1; i <= headers.length; i++) {
+      summarySheet.autoResizeColumn(i);
+    }
+  }
+  
+  return summarySheet;
+}
+
+/**
+ * Update the SupplierSummary sheet with aggregated data from OrderDetails
+ * This is called automatically whenever orders are created or updated
+ */
+function updateSupplierSummarySheet() {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const summarySheet = getOrCreateSupplierSummarySheet();
+  const detailsSheet = ss.getSheetByName('OrderDetails');
+  
+  if (!detailsSheet) {
+    Logger.log('OrderDetails sheet not found - cannot update supplier summary');
+    return;
+  }
+  
+  const data = detailsSheet.getDataRange().getValues();
+  
+  // Skip if only header row exists
+  if (data.length <= 1) {
+    Logger.log('No order data to summarize');
+    return;
+  }
+  
+  // Skip header row
+  data.shift();
+  
+  // Aggregate data by supplier and product
+  // Key format: "Supplier|ProductID"
+  const aggregation = {};
+  
+  data.forEach(row => {
+    // Skip empty rows (spacing rows)
+    if (!row[0]) return;
+    
+    const supplier = row[10] || 'Unknown Supplier'; // Column K (Supplier)
+    const productId = row[7] || '';                 // Column H (Product ID)
+    const productName = row[8] || '';               // Column I (Product Name)
+    const unitPrice = row[11] || 0;                 // Column L (Unit Price)
+    const quantity = row[12] || 0;                  // Column M (Quantity)
+    
+    const key = `${supplier}|${productId}`;
+    
+    if (!aggregation[key]) {
+      aggregation[key] = {
+        supplier: supplier,
+        productId: productId,
+        productName: productName,
+        unitPrice: unitPrice,
+        totalQuantity: 0
+      };
+    }
+    
+    aggregation[key].totalQuantity += Number(quantity);
+  });
+  
+  // Convert aggregation object to sorted array
+  const summaryRows = Object.values(aggregation)
+    .sort((a, b) => {
+      // Sort by supplier first, then by product name
+      if (a.supplier !== b.supplier) {
+        return a.supplier.localeCompare(b.supplier);
+      }
+      return a.productName.localeCompare(b.productName);
+    })
+    .map(item => [
+      item.supplier,
+      item.productId,
+      item.productName,
+      item.totalQuantity,
+      item.unitPrice
+    ]);
+  
+  // Clear existing data (keep header)
+  if (summarySheet.getLastRow() > 1) {
+    summarySheet.getRange(2, 1, summarySheet.getLastRow() - 1, 5).clear();
+  }
+  
+  // Write new data
+  if (summaryRows.length > 0) {
+    summarySheet.getRange(2, 1, summaryRows.length, 5).setValues(summaryRows);
+    
+    // Apply alternating row colors by supplier
+    let currentSupplier = null;
+    let useAlternateColor = false;
+    
+    summaryRows.forEach((row, index) => {
+      const rowNum = index + 2; // +2 because of header and 0-based index
+      const supplier = row[0];
+      
+      // Change color when supplier changes
+      if (supplier !== currentSupplier) {
+        currentSupplier = supplier;
+        useAlternateColor = !useAlternateColor;
+      }
+      
+      const backgroundColor = useAlternateColor ? '#f0f4f5' : '#ffffff';
+      summarySheet.getRange(rowNum, 1, 1, 5).setBackground(backgroundColor);
+    });
+    
+    // Auto-resize columns after adding data
+    for (let i = 1; i <= 5; i++) {
+      summarySheet.autoResizeColumn(i);
+    }
+  }
+  
+  Logger.log('SupplierSummary sheet updated successfully with ' + summaryRows.length + ' products');
+}
+
+/**
+ * Regenerate the entire SupplierSummary sheet from OrderDetails
+ * Useful for manual refresh or fixing data issues
+ */
+function regenerateSupplierSummarySheet() {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  
+  // Delete existing SupplierSummary sheet if it exists
+  const existingSheet = ss.getSheetByName('SupplierSummary');
+  if (existingSheet) {
+    ss.deleteSheet(existingSheet);
+  }
+  
+  // Recreate and populate
+  updateSupplierSummarySheet();
+  
+  Logger.log('SupplierSummary sheet regenerated successfully');
+  return { success: true, message: 'SupplierSummary sheet regenerated' };
 }
