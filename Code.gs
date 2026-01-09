@@ -10,6 +10,7 @@ const SPREADSHEET_ID = 'YOUR_SPREADSHEET_ID_HERE';  // Replace with your actual 
 const ORDERS_SHEET = 'Orders';
 const CATEGORIES_SHEET = 'Categories';
 const PRODUCTS_SHEET = 'Products';
+const ALLOWED_USERS_SHEET = 'AllowedUsers';  // For authentication
 const FRONTEND_URL = 'http://localhost:5174';  // Update with your deployed frontend URL
 
 
@@ -19,7 +20,7 @@ const FRONTEND_URL = 'http://localhost:5174';  // Update with your deployed fron
 
 /**
  * Handle GET requests
- * Endpoints: ?action=getCategories, ?action=getOrder&orderId=XXX, ?action=getOrderByToken&token=XXX, ?action=health
+ * Endpoints: Auth, Catalogue, Orders, Health
  */
 function doGet(e) {
   const action = e.parameter.action;
@@ -27,18 +28,30 @@ function doGet(e) {
   
   try {
     switch (action) {
+      // Authentication endpoints
+      case 'checkEmail':
+        result = checkEmailAccess(e.parameter.email);
+        break;
+      case 'verifyOTP':
+        result = verifyOTP(e.parameter.email, e.parameter.otp);
+        break;
+      
+      // Catalogue endpoints
       case 'getCategories':
       case 'getCatalogue':
         result = getCatalogue();
         break;
+      
+      // Order endpoints
       case 'getOrder':
         result = getOrder(e.parameter.orderId);
         break;
       case 'getOrderByToken':
         result = getOrderByToken(e.parameter.token);
         break;
+      
       case 'health':
-        result = { success: true, message: 'API is running' };
+        result = { success: true, message: 'API is running', version: '2.0' };
         break;
       default:
         result = { success: false, message: 'Unknown action. Use ?action=health to test' };
@@ -52,7 +65,7 @@ function doGet(e) {
 
 /**
  * Handle POST requests
- * Endpoints: action=createOrder, action=updateOrder
+ * Endpoints: Auth, Orders
  */
 function doPost(e) {
   let result;
@@ -62,14 +75,21 @@ function doPost(e) {
     const action = data.action;
     
     switch (action) {
+      // Authentication endpoint
+      case 'sendOTP':
+        result = sendOTP(data.email);
+        break;
+      
+      // Order endpoints
       case 'createOrder':
         result = createOrder(data.payload);
         break;
       case 'updateOrder':
         result = updateOrder(data.orderId, data.payload, data.editToken);
         break;
+      
       default:
-        result = { success: false, message: 'Unknown action. Use action=createOrder or action=updateOrder' };
+        result = { success: false, message: 'Unknown action' };
     }
   } catch (error) {
     result = { success: false, message: error.toString() };
@@ -97,6 +117,186 @@ function createJsonResponse(data) {
  */
 function generateEditToken() {
   return Utilities.getUuid();
+}
+
+
+// ========================================
+// AUTHENTICATION FUNCTIONS
+// ========================================
+
+/**
+ * Check if email is in AllowedUsers sheet
+ */
+function checkEmailAccess(email) {
+  if (!email) {
+    return { success: false, message: 'Email is required' };
+  }
+  
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const sheet = ss.getSheetByName(ALLOWED_USERS_SHEET);
+  
+  if (!sheet) {
+    // If AllowedUsers sheet doesn't exist, allow all (for backwards compatibility)
+    Logger.log('AllowedUsers sheet not found - allowing all access');
+    return { success: true, message: 'Access granted' };
+  }
+  
+  const data = sheet.getDataRange().getValues();
+  const normalizedEmail = email.toLowerCase().trim();
+  
+  for (let i = 1; i < data.length; i++) {
+    const rowEmail = (data[i][0] || '').toString().toLowerCase().trim();
+    const isActive = data[i][1] === true || data[i][1] === 'TRUE';
+    
+    if (rowEmail === normalizedEmail && isActive) {
+      return { success: true, message: 'Email authorized' };
+    }
+  }
+  
+  return { 
+    success: false, 
+    message: 'This email is not authorized. Please contact the administrator.' 
+  };
+}
+
+/**
+ * Generate OTP, store in cache, and send email
+ */
+function sendOTP(email) {
+  if (!email) {
+    return { success: false, message: 'Email is required' };
+  }
+  
+  // First check if email is authorized
+  const authCheck = checkEmailAccess(email);
+  if (!authCheck.success) {
+    return authCheck;
+  }
+  
+  // Generate 6-digit OTP
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  
+  // Store in cache for 5 minutes (300 seconds)
+  const cache = CacheService.getScriptCache();
+  cache.put(`otp_${email.toLowerCase()}`, otp, 300);
+  
+  // Send email
+  try {
+    MailApp.sendEmail({
+      to: email,
+      subject: 'Your Catalogue Access Code',
+      htmlBody: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <style>
+            body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 0; background: #f5f5f5; }
+            .container { max-width: 480px; margin: 0 auto; padding: 40px 20px; }
+            .card { background: white; border-radius: 16px; padding: 40px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
+            .logo { color: #36656b; font-size: 24px; font-weight: bold; margin-bottom: 30px; }
+            .title { font-size: 20px; color: #333; margin-bottom: 10px; }
+            .subtitle { color: #666; margin-bottom: 30px; }
+            .otp-box { 
+              background: linear-gradient(135deg, #36656b 0%, #4a8a91 100%);
+              color: white;
+              font-size: 36px; 
+              font-weight: bold; 
+              letter-spacing: 12px; 
+              padding: 24px 32px;
+              text-align: center;
+              border-radius: 12px;
+              margin: 20px 0;
+            }
+            .note { color: #888; font-size: 14px; margin-top: 30px; }
+            .footer { text-align: center; color: #999; font-size: 12px; margin-top: 30px; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="card">
+              <div class="logo">📦 Catalogue Ploughing</div>
+              <div class="title">Your Access Code</div>
+              <div class="subtitle">Enter this code to access the product catalogue</div>
+              <div class="otp-box">${otp}</div>
+              <div class="note">
+                ⏱️ This code expires in 5 minutes<br>
+                🔒 Don't share this code with anyone
+              </div>
+            </div>
+            <div class="footer">
+              If you didn't request this code, you can safely ignore this email.
+            </div>
+          </div>
+        </body>
+        </html>
+      `
+    });
+    
+    return { success: true, message: 'Access code sent to your email' };
+  } catch (error) {
+    Logger.log('Failed to send OTP email: ' + error.toString());
+    return { success: false, message: 'Failed to send email. Please try again.' };
+  }
+}
+
+/**
+ * Verify OTP from cache
+ */
+function verifyOTP(email, otp) {
+  if (!email || !otp) {
+    return { success: false, message: 'Email and code are required' };
+  }
+  
+  const cache = CacheService.getScriptCache();
+  const storedOTP = cache.get(`otp_${email.toLowerCase()}`);
+  
+  if (!storedOTP) {
+    return { success: false, message: 'Code expired. Please request a new one.' };
+  }
+  
+  if (storedOTP === otp.trim()) {
+    // Remove OTP after successful verification (one-time use)
+    cache.remove(`otp_${email.toLowerCase()}`);
+    
+    // Generate session token
+    const sessionToken = generateSessionToken(email);
+    
+    return { 
+      success: true, 
+      message: 'Verified successfully',
+      sessionToken: sessionToken,
+      email: email
+    };
+  }
+  
+  return { success: false, message: 'Incorrect code. Please try again.' };
+}
+
+/**
+ * Generate a session token (valid for 24 hours)
+ */
+function generateSessionToken(email) {
+  const expires = Date.now() + (24 * 60 * 60 * 1000); // 24 hours
+  const data = { email: email.toLowerCase(), expires: expires };
+  return Utilities.base64Encode(JSON.stringify(data));
+}
+
+/**
+ * Validate session token
+ */
+function validateSession(token) {
+  try {
+    const decoded = Utilities.newBlob(Utilities.base64Decode(token)).getDataAsString();
+    const data = JSON.parse(decoded);
+    
+    if (Date.now() > data.expires) {
+      return { valid: false, message: 'Session expired' };
+    }
+    
+    return { valid: true, email: data.email };
+  } catch (error) {
+    return { valid: false, message: 'Invalid session' };
+  }
 }
 
 
