@@ -8,7 +8,7 @@ interface CategoryTabsProps {
 
 export function CategoryTabs({ categories, activeCategoryId, onCategoryChange }: CategoryTabsProps) {
     return (
-        <section className="card-elevated p-8 mb-10 slide-up">
+        <section className="card-elevated p-6 sm:p-8 mb-8 sm:mb-10 slide-up">
             {/* Header */}
             <div className="mb-6">
                 <div className="flex items-center gap-3 mb-2">
@@ -32,9 +32,9 @@ export function CategoryTabs({ categories, activeCategoryId, onCategoryChange }:
                         <button
                             key={category.id}
                             onClick={() => onCategoryChange(category.id)}
-                            className={`px-6 py-3.5 rounded-xl font-semibold text-sm transition-all duration-200 ${isActive
-                                    ? 'bg-primary-500 text-white shadow-lg shadow-primary-500/25'
-                                    : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200 hover:shadow-md'
+                            className={`px-4 sm:px-6 py-3 sm:py-3.5 rounded-xl font-semibold text-xs sm:text-sm transition-all duration-200 ${isActive
+                                ? 'bg-primary-500 text-white shadow-lg shadow-primary-500/25'
+                                : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200 hover:shadow-md'
                                 }`}
                         >
                             {category.name}

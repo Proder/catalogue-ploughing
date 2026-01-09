@@ -1,6 +1,6 @@
 export function HeroSection() {
     return (
-        <section className="relative overflow-hidden rounded-3xl bg-primary-500 p-12 md:p-16 mb-10 fade-in">
+        <section className="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-primary-500 p-8 sm:p-12 md:p-16 mb-8 sm:mb-10 fade-in">
             {/* Background Pattern */}
             <div className="absolute inset-0 opacity-10">
                 <svg className="w-full h-full" viewBox="0 0 400 400" preserveAspectRatio="xMidYMid slice">
@@ -20,24 +20,23 @@ export function HeroSection() {
             {/* Content */}
             <div className="relative text-center">
                 {/* Badge */}
-                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 backdrop-blur-sm mb-6">
-                    <span className="w-2 h-2 rounded-full bg-accent-300 animate-pulse" />
-                    <span className="text-sm font-medium text-white/90">Simple & Fast Ordering</span>
+                <div className="inline-flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-white/10 backdrop-blur-sm mb-4 sm:mb-6">
+                    <span className="text-xs sm:text-sm font-medium text-white/90">Simple & Fast Ordering</span>
                 </div>
 
                 {/* Heading */}
-                <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-6 tracking-tight leading-tight">
+                <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-4 sm:mb-6 tracking-tight leading-tight">
                     Welcome to Our
                     <span className="block text-accent-300 mt-2">Product Catalogue</span>
                 </h1>
 
                 {/* Description */}
-                <p className="text-lg md:text-xl text-white/80 max-w-2xl mx-auto mb-10 leading-relaxed">
+                <p className="text-base sm:text-lg md:text-xl text-white/80 max-w-2xl mx-auto mb-6 sm:mb-10 leading-relaxed px-4">
                     Browse our collection, select items, and submit your order with ease.
                     Fast processing and seamless experience guaranteed.
                 </p>
 
-                {/* Stats */}
+                {/* Stats
                 <div className="flex flex-wrap justify-center gap-4 max-w-md mx-auto">
                     <div className="flex-1 min-w-[100px] px-5 py-4 rounded-xl bg-white/10 backdrop-blur-sm">
                         <div className="text-3xl font-bold text-white">50+</div>
@@ -51,7 +50,7 @@ export function HeroSection() {
                         <div className="text-3xl font-bold text-white">24h</div>
                         <div className="text-sm text-white/70 font-medium mt-1">Processing</div>
                     </div>
-                </div>
+                </div> */}
             </div>
         </section>
     );

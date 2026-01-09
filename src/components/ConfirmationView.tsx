@@ -9,12 +9,12 @@ export function ConfirmationView({ orderPayload, onCreateAnother }: Confirmation
     return (
         <div className="max-w-4xl mx-auto fade-in">
             {/* Success Header */}
-            <div className="text-center mb-12">
-                <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-gradient-to-br from-success-400 to-success-600 text-white text-5xl mb-6 shadow-xl scale-in">
+            <div className="text-center mb-8 sm:mb-12">
+                <div className="inline-flex items-center justify-center w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-br from-success-400 to-success-600 text-white text-4xl sm:text-5xl mb-4 sm:mb-6 shadow-xl scale-in">
                     ✓
                 </div>
-                <h2 className="text-4xl font-bold text-neutral-900 mb-3">Order Submitted Successfully!</h2>
-                <p className="text-lg text-neutral-600 max-w-xl mx-auto">
+                <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-neutral-900 mb-2 sm:mb-3 px-4">Order Submitted Successfully!</h2>
+                <p className="text-base sm:text-lg text-neutral-600 max-w-xl mx-auto px-4">
                     Thank you for your order. We've received your request and will process it shortly.
                 </p>
             </div>
@@ -27,7 +27,7 @@ export function ConfirmationView({ orderPayload, onCreateAnother }: Confirmation
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                         </svg>
                     </div>
-                    <h3 className="text-xl font-bold text-neutral-900">Customer Information</h3>
+                    <h3 className="text-lg sm:text-xl font-bold text-neutral-900">Customer Information</h3>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                     <div className="p-5 rounded-xl bg-neutral-50">
@@ -61,7 +61,7 @@ export function ConfirmationView({ orderPayload, onCreateAnother }: Confirmation
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4" />
                         </svg>
                     </div>
-                    <h3 className="text-xl font-bold text-neutral-900">Order Items</h3>
+                    <h3 className="text-lg sm:text-xl font-bold text-neutral-900">Order Items</h3>
                 </div>
                 <div className="space-y-3">
                     {orderPayload.lineItems.map((item) => (
@@ -91,7 +91,7 @@ export function ConfirmationView({ orderPayload, onCreateAnother }: Confirmation
 
             {/* Order Totals */}
             <div className="card-elevated p-8 mb-10">
-                <h3 className="text-xl font-bold text-neutral-900 mb-6">Order Totals</h3>
+                <h3 className="text-lg sm:text-xl font-bold text-neutral-900 mb-6">Order Totals</h3>
                 <div className="max-w-sm ml-auto space-y-4">
                     <div className="flex justify-between py-3 border-b border-neutral-100">
                         <span className="text-neutral-600">Subtotal</span>
@@ -110,7 +110,7 @@ export function ConfirmationView({ orderPayload, onCreateAnother }: Confirmation
 
             {/* Action Button */}
             <div className="text-center">
-                <button onClick={onCreateAnother} className="btn-primary px-10 py-4 text-base">
+                <button onClick={onCreateAnother} className="btn-primary px-8 sm:px-10 py-3 sm:py-4 text-sm sm:text-base">
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                     </svg>
