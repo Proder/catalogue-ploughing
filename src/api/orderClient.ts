@@ -36,18 +36,6 @@ interface CategoriesResponse {
     message?: string;
 }
 
-interface ProductsResponse {
-    success: boolean;
-    products: Product[];
-    pagination: {
-        page: number;
-        limit: number;
-        total: number;
-        hasMore: boolean;
-        totalPages: number;
-    };
-    message?: string;
-}
 
 // ========================================
 // CATALOGUE FUNCTIONS
