@@ -6,7 +6,7 @@ import { CategoryPanel } from '../../components/CategoryPanel';
 import { OrderSummary } from '../../components/OrderSummary';
 import { ConfirmationView } from '../../components/ConfirmationView';
 import type { UserInfo, OrderLineItem, OrderPayload, ValidationErrors, Product } from '../../types';
-import { MOCK_CATEGORIES } from '../../data/mockCatalogue';
+
 import { createOrder, fetchCategories, fetchProductsByCategory, fetchCatalogue, loadOrderByToken, updateOrder } from '../../api/orderClient';
 
 const TAX_RATE = 0.18; // 18%
@@ -93,17 +93,10 @@ export function OrderPage() {
                             }
                         }
                     })
-                    .catch(() => {
-                        // Final fallback to mock data
-                        setCategories(MOCK_CATEGORIES.map(c => ({ id: c.id, name: c.name })));
-                        const productsMap: Record<string, Product[]> = {};
-                        MOCK_CATEGORIES.forEach(cat => {
-                            productsMap[cat.id] = cat.products;
-                        });
-                        setCategoryProducts(productsMap);
-                        if (!editMode) {
-                            setActiveCategoryId(MOCK_CATEGORIES[0]?.id || '');
-                        }
+                    .catch((fallbackError) => {
+                        // No more fallbacks - show error
+                        console.error('Failed to load catalogue:', fallbackError);
+                        setCatalogueError('Unable to load catalogue. Please check your connection and try again.');
                     });
             })
             .finally(() => {
@@ -345,24 +338,32 @@ export function OrderPage() {
         return <ConfirmationView orderPayload={orderPayload} onCreateAnother={handleCreateAnother} />;
     }
 
-    // Show loading state while catalogue is being fetched
+    // Show loading state while catalogue is being fetched - but still show UserInfoForm
     if (isLoadingCatalogue) {
         return (
             <div className="order-page">
                 <HeroSection />
-                <div style={{
-                    padding: '3rem',
-                    textAlign: 'center',
-                    background: 'white',
-                    borderRadius: '12px',
-                    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
-                }}>
-                    <h3 style={{ marginBottom: '1rem' }}>
-                        {editMode ? 'Loading your order...' : 'Loading catalogue...'}
-                    </h3>
-                    <p style={{ color: '#718096' }}>
-                        {editMode ? 'Please wait while we fetch your order details' : 'Please wait while we fetch the latest products'}
-                    </p>
+
+                {/* User info form is always visible - no backend needed */}
+                <UserInfoForm
+                    userInfo={userInfo}
+                    validationErrors={validationErrors}
+                    onChange={handleUserInfoChange}
+                />
+
+                {/* Loading indicator for catalogue */}
+                <div className="card-elevated p-6 sm:p-8 mb-6 text-center">
+                    <div className="flex flex-col items-center gap-4">
+                        <div className="w-12 h-12 border-4 border-primary-500 border-t-transparent rounded-full animate-spin"></div>
+                        <div>
+                            <h3 className="text-lg sm:text-xl font-bold text-neutral-900 mb-1">
+                                {editMode ? 'Loading your order...' : 'Loading catalogue...'}
+                            </h3>
+                            <p className="text-sm sm:text-base text-neutral-500">
+                                {editMode ? 'Please wait while we fetch your order details' : 'Fill in your details while we load the products'}
+                            </p>
+                        </div>
+                    </div>
                 </div>
             </div>
         );
@@ -389,16 +390,29 @@ export function OrderPage() {
             )}
 
             {catalogueError && (
-                <div style={{
-                    padding: '1rem',
-                    background: '#FFF5E6',
-                    border: '1px solid #FFB84D',
-                    borderRadius: '8px',
-                    marginBottom: '1rem',
-                    color: '#B85C00',
-                    textAlign: 'center'
-                }}>
-                    ⚠️ {catalogueError}
+                <div className="card-elevated p-6 sm:p-8 mb-6 text-center">
+                    <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-amber-100 flex items-center justify-center">
+                        <svg className="w-8 h-8 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                    </div>
+                    <h3 className="text-lg sm:text-xl font-bold text-neutral-900 mb-2">
+                        {categories.length === 0 ? 'Unable to Load Catalogue' : 'Connection Issue'}
+                    </h3>
+                    <p className="text-sm sm:text-base text-neutral-600 mb-4">
+                        {catalogueError}
+                    </p>
+                    {categories.length === 0 && (
+                        <button
+                            onClick={() => window.location.reload()}
+                            className="btn-primary"
+                        >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                            Try Again
+                        </button>
+                    )}
                 </div>
             )}
 

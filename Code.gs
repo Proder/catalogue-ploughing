@@ -434,7 +434,7 @@ function getProductsByCategory(categoryId) {
     .map(prodRow => ({
       id: prodRow[0],                    // Code (A column)
       name: prodRow[2],                  // Item name (C column)
-      description: prodRow[6] || prodRow[2], // Notes or Item name as fallback
+      description: prodRow[6] || '', // Notes or Item name as fallback
       pricing2025: parseFloat(prodRow[5]) || 0,  // Pricing2025 (F column)
       imageUrl: prodRow[4] || undefined,       // ImageUrl (E column)
       exampleUrl: prodRow[7] || undefined,     // ExampleUrl (H column)
