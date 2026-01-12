@@ -30,7 +30,7 @@ export function HeroSection() {
                     <span className="block text-accent-300 mt-2">Product Catalogue</span>
                 </h1>
 
-                {/* Description */}
+                {/* App-Description */}
                 <p className="text-base sm:text-lg md:text-xl text-white/80 max-w-2xl mx-auto mb-6 sm:mb-10 leading-relaxed px-4">
                     Browse our collection, select items, and submit your order with ease.
                     Fast processing and seamless experience guaranteed.
