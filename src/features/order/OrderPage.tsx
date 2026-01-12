@@ -43,6 +43,8 @@ export function OrderPage() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isConfirmed, setIsConfirmed] = useState(false);
     const [orderPayload, setOrderPayload] = useState<OrderPayload | null>(null);
+    const [confirmedOrderId, setConfirmedOrderId] = useState<string | null>(null);
+    const [confirmedEditToken, setConfirmedEditToken] = useState<string | null>(null);
 
     // Load categories first (lightweight), then products for first category
     useEffect(() => {
@@ -153,7 +155,7 @@ export function OrderPage() {
             setIsLoadingCatalogue(true);
 
             loadOrderByToken(editTokenParam)
-                .then(response => {
+                .then(async (response) => {
                     if (response.success && response.order) {
                         const order = response.order as OrderPayload & { orderId?: string; editToken?: string };
 
@@ -167,12 +169,39 @@ export function OrderPage() {
                         });
                         setQuantities(loadedQuantities);
 
-                        // Set order ID and first category
+                        // Set order ID
                         if (order.orderId) {
                             setEditOrderId(order.orderId);
                         }
 
-                        // Set active category from first line item or default
+                        // Load products for all categories that have items in the order
+                        const categoryIdsWithItems = [...new Set(order.lineItems.map(item => item.categoryId))];
+                        console.log('📦 Loading products for', categoryIdsWithItems.length, 'categories with items');
+
+                        // Load products for each category
+                        const productLoadPromises = categoryIdsWithItems.map(categoryId =>
+                            fetchProductsByCategory(categoryId)
+                                .then(res => {
+                                    if (res.success) {
+                                        return { categoryId, products: res.products };
+                                    }
+                                    return null;
+                                })
+                                .catch(() => null)
+                        );
+
+                        const loadedProducts = await Promise.all(productLoadPromises);
+
+                        // Build products map
+                        const productsMap: Record<string, Product[]> = {};
+                        loadedProducts.forEach(result => {
+                            if (result) {
+                                productsMap[result.categoryId] = result.products;
+                            }
+                        });
+                        setCategoryProducts(productsMap);
+
+                        // Set active category from first line item
                         const firstCategoryId = order.lineItems[0]?.categoryId;
                         if (firstCategoryId) {
                             setActiveCategoryId(firstCategoryId);
@@ -295,6 +324,13 @@ export function OrderPage() {
 
             if (response.success) {
                 setOrderPayload(payload);
+                // Store the orderId and editToken from the response
+                if (response.orderId) {
+                    setConfirmedOrderId(response.orderId);
+                }
+                if (response.editToken) {
+                    setConfirmedEditToken(response.editToken);
+                }
                 setIsConfirmed(true);
 
                 // Clear URL parameters after successful submit
@@ -318,6 +354,8 @@ export function OrderPage() {
         setQuantities({});
         setIsConfirmed(false);
         setOrderPayload(null);
+        setConfirmedOrderId(null);
+        setConfirmedEditToken(null);
         setEditMode(false);
         setEditOrderId(null);
         setEditToken(null);
@@ -335,7 +373,14 @@ export function OrderPage() {
 
     // Show confirmation view after successful submission
     if (isConfirmed && orderPayload) {
-        return <ConfirmationView orderPayload={orderPayload} onCreateAnother={handleCreateAnother} />;
+        return (
+            <ConfirmationView
+                orderPayload={orderPayload}
+                orderId={confirmedOrderId}
+                editToken={confirmedEditToken}
+                onCreateAnother={handleCreateAnother}
+            />
+        );
     }
 
     // Show loading state while catalogue is being fetched - but still show UserInfoForm

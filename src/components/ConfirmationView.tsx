@@ -2,10 +2,14 @@ import type { OrderPayload } from '../types';
 
 interface ConfirmationViewProps {
     orderPayload: OrderPayload;
+    orderId: string | null;
+    editToken: string | null;
     onCreateAnother: () => void;
 }
 
-export function ConfirmationView({ orderPayload, onCreateAnother }: ConfirmationViewProps) {
+export function ConfirmationView({ orderPayload, orderId, editToken, onCreateAnother }: ConfirmationViewProps) {
+    const editUrl = editToken ? `${window.location.origin}${window.location.pathname}?edit=${editToken}` : null;
+
     return (
         <div className="max-w-4xl mx-auto fade-in">
             {/* Success Header */}
@@ -17,7 +21,54 @@ export function ConfirmationView({ orderPayload, onCreateAnother }: Confirmation
                 <p className="text-base sm:text-lg text-neutral-600 max-w-xl mx-auto px-4">
                     Thank you for your order. We've received your request and will process it shortly.
                 </p>
+                {orderId && (
+                    <p className="text-sm sm:text-base text-neutral-500 mt-2 px-4">
+                        Order ID: <span className="font-mono font-semibold text-primary-600">{orderId}</span>
+                    </p>
+                )}
             </div>
+
+            {/* Edit Link Alert */}
+            {editUrl && (
+                <div className="card-elevated p-6 mb-8 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200">
+                    <div className="flex items-start gap-4">
+                        <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-blue-500 flex items-center justify-center">
+                            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                        </div>
+                        <div className="flex-1">
+                            <h3 className="text-lg font-bold text-neutral-900 mb-2">📝 Need to make changes?</h3>
+                            <p className="text-sm text-neutral-600 mb-4">
+                                You can edit your order anytime using this link. Save it for your records!
+                            </p>
+                            <div className="flex flex-col sm:flex-row gap-3">
+                                <a
+                                    href={editUrl}
+                                    className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-blue-500 hover:bg-blue-600 text-white font-semibold transition-all shadow-lg hover:shadow-xl"
+                                >
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                    </svg>
+                                    Edit Your Order
+                                </a>
+                                <button
+                                    onClick={() => {
+                                        navigator.clipboard.writeText(editUrl);
+                                        alert('Edit link copied to clipboard!');
+                                    }}
+                                    className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-white hover:bg-neutral-50 text-neutral-700 font-semibold border-2 border-neutral-200 transition-all"
+                                >
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                    </svg>
+                                    Copy Link
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Customer Info */}
             <div className="card-elevated p-8 mb-8">
