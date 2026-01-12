@@ -38,6 +38,11 @@ function doGet(e) {
       
       // Catalogue endpoints
       case 'getCategories':
+        result = getCategoriesOnly();
+        break;
+      case 'getProductsByCategory':
+        result = getProductsByCategory(e.parameter.categoryId);
+        break;
       case 'getCatalogue':
         result = getCatalogue();
         break;
@@ -366,6 +371,85 @@ function getCatalogue() {
     });
   
   return { success: true, categories: categories };
+}
+
+/**
+ * Get categories only (without products) - OPTIMIZED for fast loading
+ */
+function getCategoriesOnly() {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const catSheet = ss.getSheetByName(CATEGORIES_SHEET);
+  const catData = catSheet.getDataRange().getValues();
+  const catHeaders = catData.shift(); // Remove header row
+  
+  // Return only category metadata (no products)
+  const categories = catData
+    .filter(row => row[0]) // Skip empty rows
+    .sort((a, b) => a[2] - b[2]) // Sort by SortOrder
+    .map(catRow => ({
+      id: catRow[0],
+      name: catRow[1],
+      sortOrder: catRow[2]
+    }));
+  
+  return { success: true, categories: categories };
+}
+
+/**
+ * Get products for a specific category - OPTIMIZED for on-demand loading
+ */
+function getProductsByCategory(categoryId) {
+  if (!categoryId) {
+    return { success: false, products: [], message: 'Category ID is required' };
+  }
+  
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  
+  // Get category info
+  const catSheet = ss.getSheetByName(CATEGORIES_SHEET);
+  const catData = catSheet.getDataRange().getValues();
+  const catHeaders = catData.shift();
+  
+  // Find the category
+  const categoryRow = catData.find(row => row[0] === categoryId);
+  if (!categoryRow) {
+    return { success: false, products: [], message: 'Category not found' };
+  }
+  
+  const categoryName = categoryRow[1];
+  
+  // Get products
+  const prodSheet = ss.getSheetByName(PRODUCTS_SHEET);
+  const prodData = prodSheet.getDataRange().getValues();
+  const prodHeaders = prodData.shift();
+  
+  // Filter products for this category
+  const products = prodData
+    .filter(prodRow => {
+      const productCategory = prodRow[1] ? prodRow[1].trim() : '';
+      const activeValue = prodRow[9];
+      const isActive = activeValue === true || activeValue === 'TRUE' || activeValue === 'true';
+      return productCategory === categoryName && isActive;
+    })
+    .map(prodRow => ({
+      id: prodRow[0],                    // Code (A column)
+      name: prodRow[2],                  // Item name (C column)
+      description: prodRow[6] || prodRow[2], // Notes or Item name as fallback
+      pricing2025: parseFloat(prodRow[5]) || 0,  // Pricing2025 (F column)
+      imageUrl: prodRow[4] || undefined,       // ImageUrl (E column)
+      exampleUrl: prodRow[7] || undefined,     // ExampleUrl (H column)
+      artworkTemplateUrl: prodRow[8] || undefined, // ArtworkTemplateUrl (I column)
+      notes: prodRow[6] || undefined,       // Notes (G column)
+      size: prodRow[3] || undefined,        // Size (D column)
+      supplier: prodRow[10] || undefined    // Supplier (K column)
+    }));
+  
+  return { 
+    success: true, 
+    categoryId: categoryId,
+    categoryName: categoryName,
+    products: products 
+  };
 }
 
 

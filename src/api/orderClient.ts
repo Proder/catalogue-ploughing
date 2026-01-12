@@ -69,7 +69,12 @@ export async function fetchCategories(): Promise<CategoriesResponse> {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
 
-        return await response.json();
+        const data = await response.json();
+        return {
+            success: data.success,
+            categories: data.categories || [],
+            message: data.message,
+        };
     } catch (error) {
         console.error('Failed to fetch categories:', error);
         throw error;
@@ -77,13 +82,11 @@ export async function fetchCategories(): Promise<CategoriesResponse> {
 }
 
 /**
- * Fetch products with pagination
+ * Fetch products for a specific category
  */
-export async function fetchProducts(
-    categoryName: string,
-    page: number = 1,
-    limit: number = 10
-): Promise<ProductsResponse> {
+export async function fetchProductsByCategory(
+    categoryId: string
+): Promise<{ success: boolean; categoryId: string; categoryName: string; products: Product[]; message?: string }> {
     try {
         if (!API_BASE_URL) {
             console.warn('⚠️ API_BASE_URL not configured');
@@ -91,10 +94,8 @@ export async function fetchProducts(
         }
 
         const params = new URLSearchParams({
-            action: 'getProducts',
-            categoryId: categoryName,
-            page: page.toString(),
-            limit: limit.toString(),
+            action: 'getProductsByCategory',
+            categoryId: categoryId,
         });
 
         const response = await fetch(`${API_BASE_URL}?${params}`);

@@ -5,9 +5,9 @@ import { CategoryTabs } from '../../components/CategoryTabs';
 import { CategoryPanel } from '../../components/CategoryPanel';
 import { OrderSummary } from '../../components/OrderSummary';
 import { ConfirmationView } from '../../components/ConfirmationView';
-import type { UserInfo, OrderLineItem, OrderPayload, ValidationErrors, Category } from '../../types';
+import type { UserInfo, OrderLineItem, OrderPayload, ValidationErrors, Product } from '../../types';
 import { MOCK_CATEGORIES } from '../../data/mockCatalogue';
-import { createOrder, fetchCatalogue, loadOrderByToken, updateOrder } from '../../api/orderClient';
+import { createOrder, fetchCategories, fetchProductsByCategory, fetchCatalogue, loadOrderByToken, updateOrder } from '../../api/orderClient';
 
 const TAX_RATE = 0.18; // 18%
 
@@ -24,8 +24,10 @@ export function OrderPage() {
     const [editOrderId, setEditOrderId] = useState<string | null>(null);
     const [editToken, setEditToken] = useState<string | null>(null);
 
-    // Catalogue state
-    const [categories, setCategories] = useState<Category[]>(MOCK_CATEGORIES);
+    // Catalogue state - OPTIMIZED
+    const [categories, setCategories] = useState<Array<{ id: string; name: string; sortOrder?: number }>>([]);
+    const [categoryProducts, setCategoryProducts] = useState<Record<string, Product[]>>({});
+    const [loadingCategoryId, setLoadingCategoryId] = useState<string | null>(null);
     const [isLoadingCatalogue, setIsLoadingCatalogue] = useState(true);
     const [catalogueError, setCatalogueError] = useState<string | null>(null);
 
@@ -42,21 +44,25 @@ export function OrderPage() {
     const [isConfirmed, setIsConfirmed] = useState(false);
     const [orderPayload, setOrderPayload] = useState<OrderPayload | null>(null);
 
-    // Load catalogue from API
+    // Load categories first (lightweight), then products for first category
     useEffect(() => {
         let mounted = true;
 
-        fetchCatalogue()
+        // Load categories only (fast!)
+        fetchCategories()
             .then(response => {
                 if (!mounted) return;
 
                 if (response.success && response.categories.length > 0) {
                     setCategories(response.categories);
                     if (!editMode) {
-                        setActiveCategoryId(response.categories[0].id);
+                        const firstCategoryId = response.categories[0].id;
+                        setActiveCategoryId(firstCategoryId);
+                        // Load products for first category immediately
+                        loadCategoryProducts(firstCategoryId);
                     }
                     setCatalogueError(null);
-                    console.log('✅ Catalogue loaded from API:', response.categories.length, 'categories');
+                    console.log('✅ Categories loaded:', response.categories.length, 'categories');
                 } else {
                     throw new Error('No categories returned from API');
                 }
@@ -64,12 +70,41 @@ export function OrderPage() {
             .catch(error => {
                 if (!mounted) return;
 
-                console.warn('⚠️ Failed to load catalogue from API, using mock data:', error);
+                console.warn('⚠️ Failed to load categories, using fallback:', error);
                 setCatalogueError('Using offline catalogue data');
-                setCategories(MOCK_CATEGORIES);
-                if (!editMode) {
-                    setActiveCategoryId(MOCK_CATEGORIES[0]?.id || '');
-                }
+
+                // Fallback to full catalogue
+                fetchCatalogue()
+                    .then(response => {
+                        if (!mounted) return;
+                        if (response.success && response.categories.length > 0) {
+                            const cats = response.categories.map(c => ({ id: c.id, name: c.name }));
+                            setCategories(cats);
+
+                            // Store all products
+                            const productsMap: Record<string, Product[]> = {};
+                            response.categories.forEach(cat => {
+                                productsMap[cat.id] = cat.products;
+                            });
+                            setCategoryProducts(productsMap);
+
+                            if (!editMode) {
+                                setActiveCategoryId(response.categories[0].id);
+                            }
+                        }
+                    })
+                    .catch(() => {
+                        // Final fallback to mock data
+                        setCategories(MOCK_CATEGORIES.map(c => ({ id: c.id, name: c.name })));
+                        const productsMap: Record<string, Product[]> = {};
+                        MOCK_CATEGORIES.forEach(cat => {
+                            productsMap[cat.id] = cat.products;
+                        });
+                        setCategoryProducts(productsMap);
+                        if (!editMode) {
+                            setActiveCategoryId(MOCK_CATEGORIES[0]?.id || '');
+                        }
+                    });
             })
             .finally(() => {
                 if (mounted) {
@@ -79,6 +114,40 @@ export function OrderPage() {
 
         return () => { mounted = false; };
     }, [editMode]);
+
+    // Helper function to load products for a specific category (with caching)
+    const loadCategoryProducts = async (categoryId: string) => {
+        // Check if already loaded
+        if (categoryProducts[categoryId]) {
+            console.log('✅ Using cached products for category:', categoryId);
+            return;
+        }
+
+        setLoadingCategoryId(categoryId);
+        console.log('📦 Loading products for category:', categoryId);
+
+        try {
+            const response = await fetchProductsByCategory(categoryId);
+            if (response.success) {
+                setCategoryProducts(prev => ({
+                    ...prev,
+                    [categoryId]: response.products
+                }));
+                console.log('✅ Loaded', response.products.length, 'products for', response.categoryName);
+            }
+        } catch (error) {
+            console.error('Failed to load products for category:', error);
+            setCatalogueError('Failed to load products for this category');
+        } finally {
+            setLoadingCategoryId(null);
+        }
+    };
+
+    // Handle category change - load products on demand
+    const handleCategoryChange = (categoryId: string) => {
+        setActiveCategoryId(categoryId);
+        loadCategoryProducts(categoryId);
+    };
 
     // Check for edit mode in URL parameters
     useEffect(() => {
@@ -150,12 +219,13 @@ export function OrderPage() {
         }));
     };
 
-    // Compute line items from quantities
+    // Compute line items from quantities using cached products
     const lineItems: OrderLineItem[] = useMemo(() => {
         const items: OrderLineItem[] = [];
 
         categories.forEach((category) => {
-            category.products.forEach((product) => {
+            const products = categoryProducts[category.id] || [];
+            products.forEach((product: Product) => {
                 const quantity = quantities[product.id] || 0;
                 if (quantity > 0) {
                     items.push({
@@ -174,7 +244,7 @@ export function OrderPage() {
         });
 
         return items;
-    }, [quantities, categories]);
+    }, [quantities, categories, categoryProducts]);
 
     // Compute totals
     const { subtotal, taxAmount, grandTotal } = useMemo(() => {
@@ -260,8 +330,15 @@ export function OrderPage() {
         setEditToken(null);
     };
 
-    // Get active category
-    const activeCategory = categories.find((cat) => cat.id === activeCategoryId);
+    // Get active category with its products
+    const activeCategory = useMemo(() => {
+        const cat = categories.find((c) => c.id === activeCategoryId);
+        if (!cat) return null;
+        return {
+            ...cat,
+            products: categoryProducts[cat.id] || []
+        };
+    }, [categories, activeCategoryId, categoryProducts]);
 
     // Show confirmation view after successful submission
     if (isConfirmed && orderPayload) {
@@ -334,10 +411,20 @@ export function OrderPage() {
             <CategoryTabs
                 categories={categories}
                 activeCategoryId={activeCategoryId}
-                onCategoryChange={setActiveCategoryId}
+                onCategoryChange={handleCategoryChange}
             />
 
-            {activeCategory && (
+            {/* Loading indicator for category products */}
+            {loadingCategoryId && (
+                <div className="card-elevated p-8 mb-8 text-center">
+                    <div className="inline-flex items-center gap-3">
+                        <div className="w-6 h-6 border-3 border-primary-500 border-t-transparent rounded-full animate-spin"></div>
+                        <span className="text-neutral-600">Loading products...</span>
+                    </div>
+                </div>
+            )}
+
+            {activeCategory && !loadingCategoryId && (
                 <CategoryPanel
                     category={activeCategory}
                     quantities={quantities}
