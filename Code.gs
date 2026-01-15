@@ -468,21 +468,22 @@ function createOrder(payload) {
   const orderId = 'ORD-' + Date.now();
   const editToken = generateEditToken();
   
-  // Prepare row data (now includes EditToken in column M)
+  // Format timestamp for Ireland timezone
+  const timestamp = payload.timestamp || new Date().toISOString();
+  const irelandDate = new Date(timestamp).toLocaleString('en-IE', { timeZone: 'Europe/Dublin' });
+  
+  // Prepare row data - simplified to just total (10 columns including EditToken)
   const row = [
     orderId,
-    payload.timestamp || new Date().toISOString(),
+    irelandDate,
     payload.userInfo.name,
     payload.userInfo.email,
     payload.userInfo.company || '',
     payload.userInfo.phone || '',
-    payload.totals.subtotal,
-    payload.totals.taxRate,
-    payload.totals.taxAmount,
-    payload.totals.grandTotal,
+    payload.totals.total,
     'pending',
     JSON.stringify(payload.lineItems),
-    editToken  // Column M - EditToken
+    editToken  // Column J - EditToken
   ];
   
   sheet.appendRow(row);
@@ -546,16 +547,13 @@ function getOrder(orderId) {
       company: orderRow[4] || undefined,
       phone: orderRow[5] || undefined
     },
-    lineItems: JSON.parse(orderRow[11]),
+    lineItems: JSON.parse(orderRow[8]),
     totals: {
-      subtotal: orderRow[6],
-      taxRate: orderRow[7],
-      taxAmount: orderRow[8],
-      grandTotal: orderRow[9]
+      total: orderRow[6]
     },
     timestamp: orderRow[1],
-    status: orderRow[10],
-    editToken: orderRow[12]  // Column M
+    status: orderRow[7],
+    editToken: orderRow[9]  // Column J
   };
   
   return { success: true, order: order };
@@ -574,8 +572,8 @@ function getOrderByToken(token) {
   const data = sheet.getDataRange().getValues();
   const headers = data.shift(); // Remove header row
   
-  // Find order row by edit token (column M)
-  const orderRow = data.find(row => row[12] === token);
+  // Find order row by edit token (column J)
+  const orderRow = data.find(row => row[9] === token);
   
   if (!orderRow) {
     return { success: false, order: null, message: 'Order not found or invalid edit link' };
@@ -590,16 +588,13 @@ function getOrderByToken(token) {
       company: orderRow[4] || undefined,
       phone: orderRow[5] || undefined
     },
-    lineItems: JSON.parse(orderRow[11]),
+    lineItems: JSON.parse(orderRow[8]),
     totals: {
-      subtotal: orderRow[6],
-      taxRate: orderRow[7],
-      taxAmount: orderRow[8],
-      grandTotal: orderRow[9]
+      total: orderRow[6]
     },
     timestamp: orderRow[1],
-    status: orderRow[10],
-    editToken: orderRow[12]
+    status: orderRow[7],
+    editToken: orderRow[9]
   };
   
   return { success: true, order: order };
@@ -621,8 +616,8 @@ function updateOrder(orderId, payload, editToken) {
   let rowIndex = -1;
   for (let i = 1; i < data.length; i++) {
     if (data[i][0] === orderId) {
-      // Verify edit token if provided
-      if (editToken && data[i][12] !== editToken) {
+      // Verify edit token if provided (column J)
+      if (editToken && data[i][9] !== editToken) {
         return { success: false, message: 'Invalid edit token' };
       }
       rowIndex = i + 1;
@@ -635,21 +630,22 @@ function updateOrder(orderId, payload, editToken) {
   }
   
   // Keep the existing edit token
-  const existingEditToken = data[rowIndex - 1][12];
+  const existingEditToken = data[rowIndex - 1][9];
   
-  // Update row data (13 columns including EditToken)
-  const range = sheet.getRange(rowIndex, 1, 1, 13);
+  // Format timestamp for Ireland timezone
+  const timestamp = payload.timestamp || new Date().toISOString();
+  const irelandDate = new Date(timestamp).toLocaleString('en-IE', { timeZone: 'Europe/Dublin' });
+  
+  // Update row data (10 columns including EditToken)
+  const range = sheet.getRange(rowIndex, 1, 1, 10);
   range.setValues([[
     orderId,
-    payload.timestamp || new Date().toISOString(),
+    irelandDate,
     payload.userInfo.name,
     payload.userInfo.email,
     payload.userInfo.company || '',
     payload.userInfo.phone || '',
-    payload.totals.subtotal,
-    payload.totals.taxRate,
-    payload.totals.taxAmount,
-    payload.totals.grandTotal,
+    payload.totals.total,
     'pending',
     JSON.stringify(payload.lineItems),
     existingEditToken  // Keep the same edit token
@@ -701,11 +697,11 @@ function sendOrderConfirmation(payload, orderId, editToken) {
   payload.lineItems.forEach(item => {
     itemsHtml += `
       <tr>
-        <td style="padding: 8px; border-bottom: 1px solid #e2e8f0;">${item.productName}</td>
-        <td style="padding: 8px; border-bottom: 1px solid #e2e8f0;">${item.size}</td>
+        <td style="padding: 8px; border-bottom: 1px solid #e2e8f0; word-wrap: break-word;">${item.productName}</td>
+        <td style="padding: 8px; border-bottom: 1px solid #e2e8f0; word-wrap: break-word;">${item.size}</td>
         <td style="padding: 8px; border-bottom: 1px solid #e2e8f0; text-align: center;">${item.quantity}</td>
-        <td style="padding: 8px; border-bottom: 1px solid #e2e8f0; text-align: right;">$${item.unitPrice.toFixed(2)}</td>
-        <td style="padding: 8px; border-bottom: 1px solid #e2e8f0; text-align: right;"><strong>$${item.lineTotal.toFixed(2)}</strong></td>
+        <td style="padding: 8px; border-bottom: 1px solid #e2e8f0; text-align: right;">€${item.unitPrice.toFixed(2)}</td>
+        <td style="padding: 8px; border-bottom: 1px solid #e2e8f0; text-align: right;"><strong>€${item.lineTotal.toFixed(2)}</strong></td>
       </tr>
     `;
   });
@@ -722,8 +718,9 @@ function sendOrderConfirmation(payload, orderId, editToken) {
         .content { background: white; padding: 30px; border: 1px solid #e2e8f0; }
         .button { display: inline-block; padding: 12px 24px; background: #667eea; color: white; text-decoration: none; border-radius: 6px; font-weight: bold; margin: 20px 0; }
         .summary { background: #f7fafc; padding: 15px; border-radius: 6px; margin: 20px 0; }
-        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-        th { background: #f7fafc; padding: 10px; text-align: left; font-weight: 600; border-bottom: 2px solid #e2e8f0; }
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; table-layout: fixed; }
+        th { background: #f7fafc; padding: 10px; text-align: left; font-weight: 600; border-bottom: 2px solid #e2e8f0; word-wrap: break-word; }
+        td { word-wrap: break-word; overflow-wrap: break-word; }
         .totals { text-align: right; margin-top: 20px; }
         .grand-total { font-size: 1.2em; color: #667eea; font-weight: bold; }
         .footer { text-align: center; color: #718096; font-size: 0.9em; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e2e8f0; }
@@ -741,7 +738,7 @@ function sendOrderConfirmation(payload, orderId, editToken) {
           
           <div class="summary">
             <strong>Order ID:</strong> ${orderId}<br>
-            <strong>Date:</strong> ${new Date(payload.timestamp).toLocaleString()}<br>
+            <strong>Date:</strong> ${new Date(payload.timestamp).toLocaleString('en-IE', { timeZone: 'Europe/Dublin' })}<br>
             <strong>Email:</strong> ${email}
           </div>
           
@@ -762,9 +759,7 @@ function sendOrderConfirmation(payload, orderId, editToken) {
           </table>
           
           <div class="totals">
-            <p>Subtotal: $${payload.totals.subtotal.toFixed(2)}</p>
-            <p>Tax (${(payload.totals.taxRate * 100).toFixed(0)}%): $${payload.totals.taxAmount.toFixed(2)}</p>
-            <p class="grand-total">Grand Total: $${payload.totals.grandTotal.toFixed(2)}</p>
+            <p class="grand-total">Total: €${payload.totals.total.toFixed(2)}</p>
           </div>
           
           <div style="background: #FFF5E6; border-left: 4px solid #FFB84D; padding: 15px; margin: 20px 0; border-radius: 4px;">
@@ -800,11 +795,9 @@ Order ID: ${orderId}
 Date: ${new Date(payload.timestamp).toLocaleString()}
 
 Order Items:
-${payload.lineItems.map(item => `- ${item.productName} (${item.size}) x${item.quantity} = $${item.lineTotal.toFixed(2)}`).join('\n')}
+${payload.lineItems.map(item => `- ${item.productName} (${item.size}) x${item.quantity} = €${item.lineTotal.toFixed(2)}`).join('\n')}
 
-Subtotal: $${payload.totals.subtotal.toFixed(2)}
-Tax (${(payload.totals.taxRate * 100).toFixed(0)}%): $${payload.totals.taxAmount.toFixed(2)}
-Grand Total: $${payload.totals.grandTotal.toFixed(2)}
+Total: €${payload.totals.total.toFixed(2)}
 
 Edit your order: ${editUrl}
   `;
@@ -837,7 +830,7 @@ function sendUpdateConfirmation(payload, orderId, editToken) {
         <div style="padding: 30px; background: white; border: 1px solid #e2e8f0;">
           <p>Hi ${name},</p>
           <p>Your order <strong>#${orderId}</strong> has been successfully updated.</p>
-          <p>Grand Total: <strong style="color: #667eea; font-size: 1.2em;">$${payload.totals.grandTotal.toFixed(2)}</strong></p>
+          <p>Total: <strong style="color: #667eea; font-size: 1.2em;">€${payload.totals.total.toFixed(2)}</strong></p>
           <p>You can view or edit your order again: <a href="${editUrl}">Edit Order</a></p>
         </div>
       </div>

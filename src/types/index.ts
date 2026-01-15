@@ -41,10 +41,7 @@ export interface UserInfo {
 }
 
 export interface OrderTotals {
-  subtotal: number;
-  taxRate: number;
-  taxAmount: number;
-  grandTotal: number;
+  total: number;
 }
 
 export interface OrderPayload {

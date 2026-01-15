@@ -9,7 +9,7 @@ import type { UserInfo, OrderLineItem, OrderPayload, ValidationErrors, Product }
 
 import { createOrder, fetchCategories, fetchProductsByCategory, fetchCatalogue, loadOrderByToken, updateOrder } from '../../api/orderClient';
 
-const TAX_RATE = 0.18; // 18%
+
 
 const INITIAL_USER_INFO: UserInfo = {
     name: '',
@@ -268,13 +268,9 @@ export function OrderPage() {
         return items;
     }, [quantities, categories, categoryProducts]);
 
-    // Compute totals
-    const { subtotal, taxAmount, grandTotal } = useMemo(() => {
-        const subtotal = lineItems.reduce((sum, item) => sum + item.lineTotal, 0);
-        const taxAmount = subtotal * TAX_RATE;
-        const grandTotal = subtotal + taxAmount;
-
-        return { subtotal, taxAmount, grandTotal };
+    // Compute total
+    const total = useMemo(() => {
+        return lineItems.reduce((sum, item) => sum + item.lineTotal, 0);
     }, [lineItems]);
 
     // Check if form is valid
@@ -302,10 +298,7 @@ export function OrderPage() {
             userInfo,
             lineItems,
             totals: {
-                subtotal,
-                taxRate: TAX_RATE,
-                taxAmount,
-                grandTotal,
+                total,
             },
             timestamp: new Date().toISOString(),
         };
@@ -498,10 +491,7 @@ export function OrderPage() {
                 <div className="order-sidebar">
                     <OrderSummary
                         lineItems={lineItems}
-                        subtotal={subtotal}
-                        taxRate={TAX_RATE}
-                        taxAmount={taxAmount}
-                        grandTotal={grandTotal}
+                        total={total}
                         isValid={isFormValid}
                         isSubmitting={isSubmitting}
                         onSubmit={handleSubmit}

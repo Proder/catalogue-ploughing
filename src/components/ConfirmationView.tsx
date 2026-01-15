@@ -140,21 +140,12 @@ export function ConfirmationView({ orderPayload, orderId, editToken, onCreateAno
                 </div>
             </div>
 
-            {/* Order Totals */}
+            {/* Order Total */}
             <div className="card-elevated p-8 mb-10">
-                <h3 className="text-lg sm:text-xl font-bold text-neutral-900 mb-6">Order Totals</h3>
-                <div className="max-w-sm ml-auto space-y-4">
-                    <div className="flex justify-between py-3 border-b border-neutral-100">
-                        <span className="text-neutral-600">Subtotal</span>
-                        <span className="font-bold text-neutral-900">€{orderPayload.totals.subtotal.toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between py-3 border-b border-neutral-100">
-                        <span className="text-neutral-600">Tax ({(orderPayload.totals.taxRate * 100).toFixed(0)}%)</span>
-                        <span className="font-bold text-neutral-900">€{orderPayload.totals.taxAmount.toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between py-4 border-t-2 border-neutral-200">
-                        <span className="text-lg font-bold text-neutral-900">Grand Total</span>
-                        <span className="text-2xl font-bold text-primary-600">€{orderPayload.totals.grandTotal.toFixed(2)}</span>
+                <div className="max-w-sm ml-auto">
+                    <div className="flex justify-between py-4">
+                        <span className="text-lg font-bold text-neutral-900">Total</span>
+                        <span className="text-2xl font-bold text-primary-600">€{orderPayload.totals.total.toFixed(2)}</span>
                     </div>
                 </div>
             </div>

@@ -3,10 +3,7 @@ import { useState } from 'react';
 
 interface OrderSummaryProps {
     lineItems: OrderLineItem[];
-    subtotal: number;
-    taxRate: number;
-    taxAmount: number;
-    grandTotal: number;
+    total: number;
     isValid: boolean;
     isSubmitting: boolean;
     onSubmit: () => void;
@@ -14,10 +11,7 @@ interface OrderSummaryProps {
 
 export function OrderSummary({
     lineItems,
-    subtotal,
-    taxRate,
-    taxAmount,
-    grandTotal,
+    total,
     isValid,
     isSubmitting,
     onSubmit,
@@ -85,25 +79,13 @@ export function OrderSummary({
                                     {itemCount}
                                 </span>
                             </div>
-
-                            <div className="flex justify-between items-center py-3 border-b border-neutral-100">
-                                <span className="text-sm font-medium text-neutral-600">Subtotal</span>
-                                <span className="text-base font-bold text-neutral-900">${subtotal.toFixed(2)}</span>
-                            </div>
-
-                            <div className="flex justify-between items-center py-3 border-b border-neutral-100">
-                                <span className="text-sm font-medium text-neutral-600">
-                                    Tax ({(taxRate * 100).toFixed(0)}%)
-                                </span>
-                                <span className="text-base font-bold text-neutral-900">${taxAmount.toFixed(2)}</span>
-                            </div>
                         </div>
 
-                        {/* Grand Total */}
+                        {/* Total */}
                         <div className="rounded-xl bg-gradient-to-r from-primary-50 to-secondary-50 border-2 border-primary-200 p-4 sm:p-5 mb-6">
                             <div className="flex justify-between items-center">
-                                <span className="text-sm sm:text-base font-semibold text-neutral-700">Grand Total</span>
-                                <span className="text-2xl sm:text-3xl font-bold text-primary-600">€{grandTotal.toFixed(2)}</span>
+                                <span className="text-sm sm:text-base font-semibold text-neutral-700">Total</span>
+                                <span className="text-2xl sm:text-3xl font-bold text-primary-600">€{total.toFixed(2)}</span>
                             </div>
                         </div>
 
