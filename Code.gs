@@ -697,11 +697,11 @@ function sendOrderConfirmation(payload, orderId, editToken) {
   payload.lineItems.forEach(item => {
     itemsHtml += `
       <tr>
-        <td style="padding: 8px; border-bottom: 1px solid #e2e8f0; word-wrap: break-word;">${item.productName}</td>
-        <td style="padding: 8px; border-bottom: 1px solid #e2e8f0; word-wrap: break-word;">${item.size}</td>
-        <td style="padding: 8px; border-bottom: 1px solid #e2e8f0; text-align: center;">${item.quantity}</td>
-        <td style="padding: 8px; border-bottom: 1px solid #e2e8f0; text-align: right;">€${item.unitPrice.toFixed(2)}</td>
-        <td style="padding: 8px; border-bottom: 1px solid #e2e8f0; text-align: right;"><strong>€${item.lineTotal.toFixed(2)}</strong></td>
+        <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0; white-space: nowrap;">${item.productName}</td>
+        <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0; white-space: nowrap;">${item.size || '-'}</td>
+        <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0; text-align: center;">${item.quantity}</td>
+        <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0; text-align: right; white-space: nowrap;">€${item.unitPrice.toFixed(2)}</td>
+        <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0; text-align: right; white-space: nowrap;"><strong>€${item.lineTotal.toFixed(2)}</strong></td>
       </tr>
     `;
   });
@@ -718,9 +718,10 @@ function sendOrderConfirmation(payload, orderId, editToken) {
         .content { background: white; padding: 30px; border: 1px solid #e2e8f0; }
         .button { display: inline-block; padding: 12px 24px; background: #667eea; color: white; text-decoration: none; border-radius: 6px; font-weight: bold; margin: 20px 0; }
         .summary { background: #f7fafc; padding: 15px; border-radius: 6px; margin: 20px 0; }
-        table { width: 100%; border-collapse: collapse; margin: 20px 0; table-layout: fixed; }
-        th { background: #f7fafc; padding: 10px; text-align: left; font-weight: 600; border-bottom: 2px solid #e2e8f0; word-wrap: break-word; }
-        td { word-wrap: break-word; overflow-wrap: break-word; }
+        .table-wrapper { overflow-x: auto; margin: 20px 0; }
+        table { min-width: 500px; width: 100%; border-collapse: collapse; }
+        th { background: #f7fafc; padding: 10px 12px; text-align: left; font-weight: 600; border-bottom: 2px solid #e2e8f0; white-space: nowrap; }
+        td { white-space: nowrap; }
         .totals { text-align: right; margin-top: 20px; }
         .grand-total { font-size: 1.2em; color: #667eea; font-weight: bold; }
         .footer { text-align: center; color: #718096; font-size: 0.9em; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e2e8f0; }
@@ -743,6 +744,7 @@ function sendOrderConfirmation(payload, orderId, editToken) {
           </div>
           
           <h3>Order Items</h3>
+          <div class="table-wrapper">
           <table>
             <thead>
               <tr>
@@ -757,6 +759,7 @@ function sendOrderConfirmation(payload, orderId, editToken) {
               ${itemsHtml}
             </tbody>
           </table>
+          </div>
           
           <div class="totals">
             <p class="grand-total">Total: €${payload.totals.total.toFixed(2)}</p>
