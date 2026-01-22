@@ -18,7 +18,7 @@ export async function checkEmail(email: string): Promise<AuthResponse> {
     try {
         if (!API_BASE_URL) {
             // Development mode - allow all emails
-            console.warn('⚠️ API not configured - allowing all emails in dev mode');
+            console.warn('API not configured - allowing all emails in dev mode');
             return { success: true, message: 'Email authorized (dev mode)' };
         }
 
@@ -44,9 +44,9 @@ export async function requestOTP(email: string): Promise<AuthResponse> {
     try {
         if (!API_BASE_URL) {
             // Development mode - simulate OTP
-            console.warn('⚠️ API not configured - simulating OTP in dev mode');
-            console.log('📧 DEV MODE: OTP would be sent to', email);
-            console.log('📧 DEV MODE: Use code 123456 to login');
+            console.warn('API not configured - simulating OTP in dev mode');
+            console.log('DEV MODE: OTP would be sent to', email);
+            console.log('DEV MODE: Use code 123456 to login');
             return { success: true, message: 'OTP sent (dev mode - use 123456)' };
         }
 

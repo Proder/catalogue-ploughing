@@ -64,7 +64,7 @@ export function OrderPage() {
                         loadCategoryProducts(firstCategoryId);
                     }
                     setCatalogueError(null);
-                    console.log('✅ Categories loaded:', response.categories.length, 'categories');
+                    console.log('Categories loaded:', response.categories.length, 'categories');
                 } else {
                     throw new Error('No categories returned from API');
                 }
@@ -72,7 +72,7 @@ export function OrderPage() {
             .catch(error => {
                 if (!mounted) return;
 
-                console.warn('⚠️ Failed to load categories, using fallback:', error);
+                console.warn('Failed to load categories, using fallback:', error);
                 setCatalogueError('Using offline catalogue data');
 
                 // Fallback to full catalogue
@@ -114,12 +114,12 @@ export function OrderPage() {
     const loadCategoryProducts = async (categoryId: string) => {
         // Check if already loaded
         if (categoryProducts[categoryId]) {
-            console.log('✅ Using cached products for category:', categoryId);
+            console.log('Using cached products for category:', categoryId);
             return;
         }
 
         setLoadingCategoryId(categoryId);
-        console.log('📦 Loading products for category:', categoryId);
+        console.log('Loading products for category:', categoryId);
 
         try {
             const response = await fetchProductsByCategory(categoryId);
@@ -128,7 +128,7 @@ export function OrderPage() {
                     ...prev,
                     [categoryId]: response.products
                 }));
-                console.log('✅ Loaded', response.products.length, 'products for', response.categoryName);
+                console.log('Loaded', response.products.length, 'products for', response.categoryName);
             }
         } catch (error) {
             console.error('Failed to load products for category:', error);
@@ -176,7 +176,7 @@ export function OrderPage() {
 
                         // Load products for all categories that have items in the order
                         const categoryIdsWithItems = [...new Set(order.lineItems.map(item => item.categoryId))];
-                        console.log('📦 Loading products for', categoryIdsWithItems.length, 'categories with items');
+                        console.log('Loading products for', categoryIdsWithItems.length, 'categories with items');
 
                         // Load products for each category
                         const productLoadPromises = categoryIdsWithItems.map(categoryId =>
@@ -207,7 +207,7 @@ export function OrderPage() {
                             setActiveCategoryId(firstCategoryId);
                         }
 
-                        console.log('✅ Loaded order for editing:', order.orderId);
+                        console.log('Loaded order for editing:', order.orderId);
                     } else {
                         console.error('Failed to load order:', response.message);
                         setCatalogueError('Failed to load order for editing. Link may be invalid or expired.');
@@ -308,10 +308,10 @@ export function OrderPage() {
 
             // Use updateOrder if in edit mode, otherwise createOrder
             if (editMode && editOrderId) {
-                console.log('📝 Updating existing order:', editOrderId);
+                console.log('Updating existing order:', editOrderId);
                 response = await updateOrder(editOrderId, payload, editToken || undefined);
             } else {
-                console.log('📦 Creating new order');
+                console.log('Creating new order');
                 response = await createOrder(payload);
             }
 
@@ -423,7 +423,7 @@ export function OrderPage() {
                     textAlign: 'center',
                     fontWeight: 500
                 }}>
-                    ✏️ Edit Mode: You're updating order #{editOrderId}
+                    Edit Mode: You're updating order #{editOrderId}
                 </div>
             )}
 
