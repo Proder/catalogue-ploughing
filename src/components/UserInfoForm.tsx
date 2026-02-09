@@ -3,14 +3,24 @@ import type { UserInfo, ValidationErrors } from '../types';
 interface UserInfoFormProps {
     userInfo: UserInfo;
     validationErrors: ValidationErrors;
-    onChange: (field: keyof UserInfo, value: string) => void;
+    onChange: (field: keyof UserInfo, value: any) => void;
+    readOnly?: boolean;
 }
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-export function UserInfoForm({ userInfo, validationErrors, onChange }: UserInfoFormProps) {
+// Dummy data for dropdowns
+const DEPARTMENTS = [
+    'Sales', 'Marketing', 'Operations', 'Finance', 'HR', 'Other'
+];
+
+const HUBS = [
+    'Main Hall', 'Outdoor Arena', 'Food Court', 'Tech Zone', 'Agri-Hub'
+];
+
+export function UserInfoForm({ userInfo, validationErrors, onChange, readOnly = false }: UserInfoFormProps) {
     return (
-        <section className="card-elevated p-8 mb-10 slide-up">
+        <section className={`card-elevated p-8 mb-10 slide-up ${readOnly ? 'opacity-90 pointer-events-none bg-gray-50' : ''}`}>
             {/* Header */}
             <div className="mb-8">
                 <div className="flex items-center gap-3 mb-2">
@@ -20,8 +30,8 @@ export function UserInfoForm({ userInfo, validationErrors, onChange }: UserInfoF
                         </svg>
                     </div>
                     <div>
-                        <h2 className="section-title">Your Information</h2>
-                        <p className="section-subtitle text-sm">Please fill in your contact details</p>
+                        <h2 className="section-title">Step 1: Information</h2>
+                        <p className="section-subtitle text-sm">Please provide your contact and stand details</p>
                     </div>
                 </div>
             </div>
@@ -31,7 +41,7 @@ export function UserInfoForm({ userInfo, validationErrors, onChange }: UserInfoF
                 {/* Name */}
                 <div className="space-y-2">
                     <label htmlFor="name" className="block text-sm font-semibold text-neutral-700">
-                        Full Name <span className="text-error-500">*</span>
+                        Primary Contact - Full Name <span className="text-error-500">*</span>
                     </label>
                     <input
                         type="text"
@@ -40,21 +50,39 @@ export function UserInfoForm({ userInfo, validationErrors, onChange }: UserInfoF
                         value={userInfo.name}
                         onChange={(e) => onChange('name', e.target.value)}
                         placeholder="John Doe"
+                        disabled={readOnly}
                     />
                     {validationErrors.name && (
-                        <p className="flex items-center gap-1.5 text-sm text-error-600 mt-1.5">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            {validationErrors.name}
-                        </p>
+                        <p className="text-error-600 text-sm mt-1">{validationErrors.name}</p>
+                    )}
+                </div>
+
+                {/* Department */}
+                <div className="space-y-2">
+                    <label htmlFor="department" className="block text-sm font-semibold text-neutral-700">
+                        Department / Organisation <span className="text-error-500">*</span>
+                    </label>
+                    <select
+                        id="department"
+                        className={`input-field ${validationErrors.department ? 'input-error' : ''}`}
+                        value={userInfo.department || ''}
+                        onChange={(e) => onChange('department', e.target.value)}
+                        disabled={readOnly}
+                    >
+                        <option value="">Select Department</option>
+                        {DEPARTMENTS.map(dept => (
+                            <option key={dept} value={dept}>{dept}</option>
+                        ))}
+                    </select>
+                    {validationErrors.department && (
+                        <p className="text-error-600 text-sm mt-1">{validationErrors.department}</p>
                     )}
                 </div>
 
                 {/* Email */}
                 <div className="space-y-2">
                     <label htmlFor="email" className="block text-sm font-semibold text-neutral-700">
-                        Email Address <span className="text-error-500">*</span>
+                        Email Address - Lead <span className="text-error-500">*</span>
                     </label>
                     <input
                         type="email"
@@ -63,46 +91,117 @@ export function UserInfoForm({ userInfo, validationErrors, onChange }: UserInfoF
                         value={userInfo.email}
                         onChange={(e) => onChange('email', e.target.value)}
                         placeholder="john@company.com"
+                        disabled={readOnly}
                     />
                     {validationErrors.email && (
-                        <p className="flex items-center gap-1.5 text-sm text-error-600 mt-1.5">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            {validationErrors.email}
-                        </p>
+                        <p className="text-error-600 text-sm mt-1">{validationErrors.email}</p>
                     )}
                 </div>
 
-                {/* Company */}
+                {/* Mobile */}
                 <div className="space-y-2">
-                    <label htmlFor="company" className="block text-sm font-semibold text-neutral-700">
-                        Company/Organization
-                    </label>
-                    <input
-                        type="text"
-                        id="company"
-                        className="input-field"
-                        value={userInfo.company || ''}
-                        onChange={(e) => onChange('company', e.target.value)}
-                        placeholder="Acme Inc. (optional)"
-                    />
-                </div>
-
-                {/* Phone */}
-                <div className="space-y-2">
-                    <label htmlFor="phone" className="block text-sm font-semibold text-neutral-700">
-                        Phone Number
+                    <label htmlFor="mobile" className="block text-sm font-semibold text-neutral-700">
+                        Mobile Number <span className="text-error-500">*</span>
                     </label>
                     <input
                         type="tel"
-                        id="phone"
+                        id="mobile"
+                        className={`input-field ${validationErrors.mobile ? 'input-error' : ''}`}
+                        value={userInfo.mobile || ''}
+                        onChange={(e) => onChange('mobile', e.target.value)}
+                        placeholder="+353 00 000 0000"
+                        disabled={readOnly}
+                    />
+                    {validationErrors.mobile && (
+                        <p className="text-error-600 text-sm mt-1">{validationErrors.mobile}</p>
+                    )}
+                </div>
+
+                {/* Backup Name */}
+                <div className="space-y-2">
+                    <label htmlFor="backupName" className="block text-sm font-semibold text-neutral-700">
+                        Back-up Contact - Full Name
+                    </label>
+                    <input
+                        type="text"
+                        id="backupName"
                         className="input-field"
-                        value={userInfo.phone || ''}
-                        onChange={(e) => onChange('phone', e.target.value)}
-                        placeholder="+1 (555) 000-0000 (optional)"
+                        value={userInfo.backupName || ''}
+                        onChange={(e) => onChange('backupName', e.target.value)}
+                        placeholder="Jane Doe"
+                        disabled={readOnly}
                     />
                 </div>
+
+                {/* Backup Email */}
+                <div className="space-y-2">
+                    <label htmlFor="backupEmail" className="block text-sm font-semibold text-neutral-700">
+                        Back-up Contact Email
+                    </label>
+                    <input
+                        type="email"
+                        id="backupEmail"
+                        className="input-field"
+                        value={userInfo.backupEmail || ''}
+                        onChange={(e) => onChange('backupEmail', e.target.value)}
+                        placeholder="jane@company.com"
+                        disabled={readOnly}
+                    />
+                </div>
+
+                {/* Hub */}
+                <div className="space-y-2">
+                    <label htmlFor="hub" className="block text-sm font-semibold text-neutral-700">
+                        Hub / Theme <span className="text-error-500">*</span>
+                    </label>
+                    <select
+                        id="hub"
+                        className={`input-field ${validationErrors.hub ? 'input-error' : ''}`}
+                        value={userInfo.hub || ''}
+                        onChange={(e) => onChange('hub', e.target.value)}
+                        disabled={readOnly}
+                    >
+                        <option value="">Select Hub</option>
+                        {HUBS.map(hub => (
+                            <option key={hub} value={hub}>{hub}</option>
+                        ))}
+                    </select>
+                    {validationErrors.hub && (
+                        <p className="text-error-600 text-sm mt-1">{validationErrors.hub}</p>
+                    )}
+                </div>
+
+                {/* Same Requirements (Full width) */}
+                <div className="col-span-1 md:col-span-2 space-y-2 bg-gray-50 p-4 rounded-lg border border-gray-200">
+                    <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                        Same requirements as last year? (Same stand size)
+                    </label>
+                    <div className="flex gap-4">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                                type="radio"
+                                name="sameRequirements"
+                                className="w-4 h-4 text-primary-600"
+                                checked={userInfo.sameRequirements === true}
+                                onChange={() => onChange('sameRequirements', true)}
+                                disabled={readOnly}
+                            />
+                            <span>Yes</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                                type="radio"
+                                name="sameRequirements"
+                                className="w-4 h-4 text-primary-600"
+                                checked={userInfo.sameRequirements === false}
+                                onChange={() => onChange('sameRequirements', false)}
+                                disabled={readOnly}
+                            />
+                            <span>No</span>
+                        </label>
+                    </div>
+                </div>
+
             </div>
         </section>
     );
@@ -111,15 +210,16 @@ export function UserInfoForm({ userInfo, validationErrors, onChange }: UserInfoF
 export function validateUserInfo(userInfo: UserInfo): ValidationErrors {
     const errors: ValidationErrors = {};
 
-    if (!userInfo.name || userInfo.name.trim().length === 0) {
-        errors.name = 'Name is required';
-    }
-
-    if (!userInfo.email || userInfo.email.trim().length === 0) {
+    if (!userInfo.name?.trim()) errors.name = 'Name is required';
+    if (!userInfo.email?.trim()) {
         errors.email = 'Email is required';
     } else if (!EMAIL_REGEX.test(userInfo.email)) {
-        errors.email = 'Please enter a valid email address';
+        errors.email = 'Invalid email address';
     }
+
+    if (!userInfo.department) errors.department = 'Department is required';
+    if (!userInfo.mobile?.trim()) errors.mobile = 'Mobile number is required';
+    if (!userInfo.hub) errors.hub = 'Hub is required';
 
     return errors;
 }

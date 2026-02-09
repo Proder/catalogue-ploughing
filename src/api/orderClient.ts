@@ -36,6 +36,12 @@ interface CategoriesResponse {
     message?: string;
 }
 
+interface SettingsResponse {
+    success: boolean;
+    settings: { phase2Enabled: boolean };
+    message?: string;
+}
+
 
 // ========================================
 // CATALOGUE FUNCTIONS
@@ -119,6 +125,31 @@ export async function fetchCatalogue(): Promise<CatalogueResponse> {
     } catch (error) {
         console.error('Failed to fetch catalogue:', error);
         throw error;
+    }
+}
+
+/**
+ * Fetch application settings
+ */
+export async function fetchSettings(): Promise<SettingsResponse> {
+    try {
+        if (!API_BASE_URL) {
+            console.warn('⚠️ API_BASE_URL not configured');
+            // Return default if no API
+            return { success: true, settings: { phase2Enabled: false } };
+        }
+
+        const response = await fetch(`${API_BASE_URL}?action=getSettings`);
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        return await response.json();
+    } catch (error) {
+        console.error('Failed to fetch settings:', error);
+        // Default to false on error to be safe
+        return { success: false, settings: { phase2Enabled: false } };
     }
 }
 
