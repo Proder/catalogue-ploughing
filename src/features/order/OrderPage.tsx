@@ -8,7 +8,7 @@ import { OrderSummary } from '../../components/OrderSummary';
 import { ConfirmationView } from '../../components/ConfirmationView';
 import type { UserInfo, OrderLineItem, OrderPayload, ValidationErrors, Product, Phase1Data } from '../../types';
 
-import { createOrder, fetchCategories, fetchProductsByCategory, fetchCatalogue, loadOrderByToken, updateOrder, fetchSettings } from '../../api/orderClient';
+import { createOrder, fetchCategories, fetchProductsByCategory, loadOrderByToken, updateOrder, fetchSettings } from '../../api/orderClient';
 
 const INITIAL_USER_INFO: UserInfo = {
     name: '',
@@ -330,6 +330,17 @@ export function OrderPage() {
         }
     };
 
+    const handleEditStep = (step: Step) => {
+        if (step === 'INFO') {
+            setInfoSubmitted(false);
+            setCurrentStep('INFO');
+        } else if (step === 'PHASE1') {
+            setPhase1Submitted(false);
+            setCurrentStep('PHASE1');
+        }
+        window.scrollTo(0, 0);
+    };
+
     // Render Logic
 
     // 1. Confirmation View
@@ -360,6 +371,12 @@ export function OrderPage() {
     return (
         <div className="order-page">
             <HeroSection />
+
+            {catalogueError && (
+                <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-6 mx-auto max-w-6xl">
+                    <p className="text-red-700">{catalogueError}</p>
+                </div>
+            )}
 
             {/* Step 1: Info */}
             <div className={`transition-all duration-300 ${currentStep !== 'INFO' ? 'opacity-80' : ''}`}>
@@ -449,53 +466,53 @@ export function OrderPage() {
 
             {/* Step 3: Phase 2 (Product Selection) */}
             {currentStep === 'PHASE2' && (
-                <div className="slide-up">
-                    <div className="flex items-center gap-3 mb-6">
-                        <div className="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center">
-                            <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-                            </svg>
+                <>
+                    <div className="slide-up">
+                        <div className="flex items-center gap-3 mb-6">
+                            <div className="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center">
+                                <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                                </svg>
+                            </div>
+                            <div>
+                                <h2 className="section-title">Phase 2: Product Selection</h2>
+                                <p className="section-subtitle text-sm">Select items for your stand</p>
+                            </div>
                         </div>
-                        <div>
-                            <h2 className="section-title">Phase 2: Product Selection</h2>
-                            <p className="section-subtitle text-sm">Select items for your stand</p>
-                        </div>
-                    </div>
 
-                    <CategoryTabs
-                        categories={categories}
-                        activeCategoryId={activeCategoryId}
-                        onCategoryChange={handleCategoryChange}
+                        <CategoryTabs
+                            categories={categories}
+                            activeCategoryId={activeCategoryId}
+                            onCategoryChange={handleCategoryChange}
+                        />
+
+                        {loadingCategoryId && (
+                            <div className="card-elevated p-8 mb-8 text-center">
+                                <span className="text-neutral-600">Loading products...</span>
+                            </div>
+                        )}
+
+                        {!loadingCategoryId && (
+                            <CategoryPanel
+                                category={{
+                                    ...categories.find(c => c.id === activeCategoryId)!,
+                                    products: categoryProducts[activeCategoryId] || []
+                                }}
+                                quantities={quantities}
+                                onQuantityChange={handleQuantityChange}
+                            />
+                        )}
+
+                    </div>
+                    <OrderSummary
+                        lineItems={lineItems}
+                        total={total}
+                        isValid={lineItems.length > 0}
+                        isSubmitting={isSubmitting}
+                        onSubmit={handleStepSubmit}
+                        buttonText="Submit Final Order"
                     />
-
-                    {loadingCategoryId && (
-                        <div className="card-elevated p-8 mb-8 text-center">
-                            <span className="text-neutral-600">Loading products...</span>
-                        </div>
-                    )}
-
-                    {!loadingCategoryId && (
-                        <CategoryPanel
-                            category={{
-                                ...categories.find(c => c.id === activeCategoryId)!,
-                                products: categoryProducts[activeCategoryId] || []
-                            }}
-                            quantities={quantities}
-                            onQuantityChange={handleQuantityChange}
-                        />
-                    )}
-
-                    <div className="sticky bottom-4 z-40">
-                        <OrderSummary
-                            lineItems={lineItems}
-                            total={total}
-                            isValid={lineItems.length > 0}
-                            isSubmitting={isSubmitting}
-                            onSubmit={handleStepSubmit}
-                            buttonText="Submit Final Order"
-                        />
-                    </div>
-                </div>
+                </>
             )}
         </div>
     );

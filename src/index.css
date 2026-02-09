@@ -13,7 +13,7 @@
   }
 
   body {
-    @apply font-sans text-neutral-800 bg-gradient-to-b from-neutral-50 to-neutral-100 min-h-screen antialiased;
+    @apply font-sans text-neutral-800 bg-gradient-to-b from-neutral-50 to-neutral-100 min-h-screen antialiased overflow-x-hidden;
   }
 }
 
