@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { HeroSection } from '../../components/HeroSection';
 import { UserInfoForm, validateUserInfo } from '../../components/UserInfoForm';
 import { Phase1Form, validatePhase1Data } from '../../components/Phase1Form';
@@ -67,6 +67,17 @@ export function OrderPage() {
     const [orderPayload, setOrderPayload] = useState<OrderPayload | null>(null);
     const [confirmedOrderId, setConfirmedOrderId] = useState<string | null>(null);
     const [confirmedEditToken, setConfirmedEditToken] = useState<string | null>(null);
+
+    // Refs for scrolling
+    const infoRef = useRef<HTMLDivElement>(null);
+    const phase1Ref = useRef<HTMLDivElement>(null);
+    const phase2Ref = useRef<HTMLDivElement>(null);
+
+    const scrollToSection = (ref: React.RefObject<HTMLDivElement | null>) => {
+        setTimeout(() => {
+            ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 100);
+    };
 
     // Load initial settings and catalogue
     useEffect(() => {
@@ -307,20 +318,20 @@ export function OrderPage() {
                 if (currentStep === 'INFO') {
                     setInfoSubmitted(true);
                     setCurrentStep('PHASE1');
-                    window.scrollTo(0, 0);
+                    scrollToSection(phase1Ref);
                 } else if (currentStep === 'PHASE1') {
                     setPhase1Submitted(true);
                     if (phase2Enabled) {
                         setCurrentStep('PHASE2');
+                        scrollToSection(phase2Ref);
                     }
-                    // If phase 2 not enabled, stay on Phase 1 view (which shows success/waiting message)
-                    window.scrollTo(0, 0);
                 } else if (currentStep === 'PHASE2') {
                     // Final submission
                     setOrderPayload(payload);
                     setConfirmedOrderId(response.orderId || editOrderId);
                     setConfirmedEditToken(response.editToken || editToken);
                     setIsConfirmed(true);
+                    window.scrollTo(0, 0);
                 }
             }
         } catch (error) {
@@ -334,11 +345,12 @@ export function OrderPage() {
         if (step === 'INFO') {
             setInfoSubmitted(false);
             setCurrentStep('INFO');
+            scrollToSection(infoRef);
         } else if (step === 'PHASE1') {
             setPhase1Submitted(false);
             setCurrentStep('PHASE1');
+            scrollToSection(phase1Ref);
         }
-        window.scrollTo(0, 0);
     };
 
     // Render Logic
@@ -379,86 +391,114 @@ export function OrderPage() {
             )}
 
             {/* Step 1: Info */}
-            <div className={`transition-all duration-300 ${currentStep !== 'INFO' ? 'opacity-80' : ''}`}>
-                <div className="flex justify-between items-center mb-4">
-                    {/* Header or Title if needed */}
-                    {infoSubmitted && currentStep !== 'INFO' && (
-                        <button
-                            onClick={() => handleEditStep('INFO')}
-                            className="text-primary-600 font-medium text-sm flex items-center gap-1 hover:text-primary-800 ml-auto"
-                        >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                            </svg>
-                            Edit Information
-                        </button>
-                    )}
-                </div>
-
-                <UserInfoForm
-                    userInfo={userInfo}
-                    validationErrors={validationErrors}
-                    onChange={handleUserInfoChange}
-                    readOnly={infoSubmitted}
-                />
-
-                {currentStep === 'INFO' && (
-                    <div className="text-center mb-10">
-                        <button
-                            onClick={handleStepSubmit}
-                            disabled={isSubmitting}
-                            className="btn-primary w-full md:w-auto px-12 py-3 text-lg"
-                        >
-                            {isSubmitting ? 'Saving...' : 'Next: Requirements'}
-                        </button>
-                    </div>
-                )}
-            </div>
-
-            {/* Step 2: Phase 1 */}
-            {(currentStep === 'PHASE1' || currentStep === 'PHASE2') && (
-                <div className={`slide-up transition-all duration-300 ${currentStep === 'PHASE2' ? 'opacity-80' : ''}`}>
-                    <div className="flex justify-between items-center mb-4">
-                        {phase1Submitted && currentStep !== 'PHASE1' && (
-                            <button
-                                onClick={() => handleEditStep('PHASE1')}
-                                className="text-primary-600 font-medium text-sm flex items-center gap-1 hover:text-primary-800 ml-auto"
-                            >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+            <div ref={infoRef} className="mb-6 transition-all duration-500 ease-in-out">
+                {currentStep !== 'INFO' && infoSubmitted ? (
+                    // Collapsed Summary View
+                    <div
+                        onClick={() => handleEditStep('INFO')}
+                        className="card-base p-6 flex flex-col md:flex-row justify-between items-center cursor-pointer hover:border-primary-300 hover:shadow-md transition-all group"
+                    >
+                        <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-green-600">
+                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                                 </svg>
-                                Edit Requirements
-                            </button>
-                        )}
+                            </div>
+                            <div>
+                                <h3 className="font-bold text-lg text-neutral-800 group-hover:text-primary-700 transition-colors">Step 1: Information</h3>
+                                <div className="text-neutral-500 text-sm mt-1 flex flex-wrap gap-x-4 gap-y-1">
+                                    <span className="font-medium">{userInfo.name}</span>
+                                    <span className="hidden md:inline text-neutral-300">|</span>
+                                    <span>{userInfo.department}</span>
+                                    <span className="hidden md:inline text-neutral-300">|</span>
+                                    <span>{userInfo.email}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <button className="mt-4 md:mt-0 px-4 py-2 text-sm font-semibold text-primary-600 bg-primary-50 rounded-lg group-hover:bg-primary-100 transition-colors">
+                            Edit
+                        </button>
                     </div>
-
-                    <Phase1Form
-                        data={phase1Data}
-                        validationErrors={validationErrors}
-                        onChange={handlePhase1Change}
-                        readOnly={phase1Submitted}
-                    />
-
-                    {currentStep === 'PHASE1' && !phase1Submitted && (
+                ) : (
+                    // Full Form View
+                    <div className="animate-fade-in">
+                        <UserInfoForm
+                            userInfo={userInfo}
+                            validationErrors={validationErrors}
+                            onChange={handleUserInfoChange}
+                        />
                         <div className="text-center mb-10">
                             <button
                                 onClick={handleStepSubmit}
                                 disabled={isSubmitting}
                                 className="btn-primary w-full md:w-auto px-12 py-3 text-lg"
                             >
-                                {isSubmitting ? 'Saving...' : 'Submit Requirements'}
+                                {isSubmitting ? 'Saving...' : 'Next: Requirements'}
                             </button>
                         </div>
-                    )}
+                    </div>
+                )}
+            </div>
 
-                    {currentStep === 'PHASE1' && phase1Submitted && !phase2Enabled && (
-                        <div className="card-elevated p-8 bg-blue-50 border-blue-200 text-center">
-                            <h3 className="text-xl font-bold text-blue-800 mb-2">Requirements Submitted</h3>
-                            <p className="text-blue-700">
-                                Thank you for submitting your detailed requirements.
-                                Product selection (Phase 2) is not yet open.
-                                We will notify you when it is available.
-                            </p>
+            {/* Step 2: Phase 1 */}
+            {(currentStep === 'PHASE1' || currentStep === 'PHASE2') && (
+                <div ref={phase1Ref} className="mb-6 transition-all duration-500 ease-in-out">
+                    {currentStep !== 'PHASE1' && phase1Submitted ? (
+                        // Collapsed Summary View
+                        <div
+                            onClick={() => handleEditStep('PHASE1')}
+                            className="card-base p-6 flex flex-col md:flex-row justify-between items-center cursor-pointer hover:border-primary-300 hover:shadow-md transition-all group"
+                        >
+                            <div className="flex items-center gap-4">
+                                <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-green-600">
+                                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                    </svg>
+                                </div>
+                                <div>
+                                    <h3 className="font-bold text-lg text-neutral-800 group-hover:text-primary-700 transition-colors">Phase 1: Requirements</h3>
+                                    <div className="text-neutral-500 text-sm mt-1 flex flex-wrap gap-x-4 gap-y-1">
+                                        <span className="font-medium">Footprint: {phase1Data.footprint}</span>
+                                        <span className="hidden md:inline text-neutral-300">|</span>
+                                        <span>Shared Storage: {phase1Data.sharedStorage ? 'Yes' : 'No'}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <button className="mt-4 md:mt-0 px-4 py-2 text-sm font-semibold text-primary-600 bg-primary-50 rounded-lg group-hover:bg-primary-100 transition-colors">
+                                Edit
+                            </button>
+                        </div>
+                    ) : (
+                        // Full Form View
+                        <div className="animate-slide-up">
+                            <Phase1Form
+                                data={phase1Data}
+                                validationErrors={validationErrors}
+                                onChange={handlePhase1Change}
+                            />
+
+                            {!phase1Submitted && (
+                                <div className="text-center mb-10">
+                                    <button
+                                        onClick={handleStepSubmit}
+                                        disabled={isSubmitting}
+                                        className="btn-primary w-full md:w-auto px-12 py-3 text-lg"
+                                    >
+                                        {isSubmitting ? 'Saving...' : 'Submit Requirements'}
+                                    </button>
+                                </div>
+                            )}
+
+                            {phase1Submitted && !phase2Enabled && (
+                                <div className="card-elevated p-8 bg-blue-50 border-blue-200 text-center mt-6">
+                                    <h3 className="text-xl font-bold text-blue-800 mb-2">Requirements Submitted</h3>
+                                    <p className="text-blue-700">
+                                        Thank you for submitting your detailed requirements.
+                                        Product selection (Phase 2) is not yet open.
+                                        We will notify you when it is available.
+                                    </p>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>
@@ -467,7 +507,7 @@ export function OrderPage() {
             {/* Step 3: Phase 2 (Product Selection) */}
             {currentStep === 'PHASE2' && (
                 <>
-                    <div className="slide-up">
+                    <div ref={phase2Ref} className="slide-up">
                         <div className="flex items-center gap-3 mb-6">
                             <div className="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center">
                                 <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
