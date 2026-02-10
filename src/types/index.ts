@@ -64,7 +64,7 @@ export interface OrderPayload {
   lineItems: OrderLineItem[];
   totals: OrderTotals;
   timestamp: string;
-  emailType?: 'INFO' | 'PHASE1' | 'PHASE2';
+  emailType?: 'INFO' | 'PHASE1' | 'PHASE2' | 'SAME_REQUIREMENTS';
 }
 
 // Form validation state

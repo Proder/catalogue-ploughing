@@ -223,13 +223,13 @@ function sendOTP(email) {
         <body>
           <div class="container">
             <div class="card">
-              <div class="logo">📦 Catalogue Ploughing</div>
+              <div class="logo">Catalogue Ploughing</div>
               <div class="title">Your Access Code</div>
               <div class="subtitle">Enter this code to access the product catalogue</div>
               <div class="otp-box">${otp}</div>
               <div class="note">
-                ⏱️ This code expires in 5 minutes<br>
-                🔒 Don't share this code with anyone
+                This code expires in 5 minutes<br>
+                Don't share this code with anyone
               </div>
             </div>
             <div class="footer">
@@ -555,16 +555,16 @@ function createOrder(payload) {
     Logger.log('Failed to update SupplierSummary sheet: ' + summaryError.toString());
   }
   
-  // Send confirmation email based on type
+  // Send confirmation email ONLY for Phase 1, Phase 2, and Same Requirements submissions
   try {
-    if (payload.emailType === 'INFO') {
-      sendStep1Confirmation(payload, orderId, editToken);
+    if (payload.emailType === 'SAME_REQUIREMENTS') {
+      sendSameRequirementsConfirmation(payload, orderId, editToken);
     } else if (payload.emailType === 'PHASE1') {
       sendPhase1Confirmation(payload, orderId, editToken);
-    } else {
-      // Default to full confirmation for PHASE2 or undefined
+    } else if (payload.emailType === 'PHASE2' || (!payload.emailType && payload.lineItems && payload.lineItems.length > 0)) {
       sendOrderConfirmation(payload, orderId, editToken);
     }
+    // No email sent for INFO (Step 1) submissions
   } catch (emailError) {
     Logger.log('Failed to send email: ' + emailError.toString());
   }
@@ -779,16 +779,16 @@ function updateOrder(orderId, payload, editToken) {
     Logger.log('Failed to update SupplierSummary sheet: ' + summaryError.toString());
   }
   
-  // Send update confirmation email based on type
+  // Send update confirmation email
   try {
-    if (payload.emailType === 'INFO') {
-      sendStep1Confirmation(payload, orderId, existingEditToken);
+    if (payload.emailType === 'SAME_REQUIREMENTS') {
+      sendSameRequirementsConfirmation(payload, orderId, existingEditToken);
     } else if (payload.emailType === 'PHASE1') {
       sendPhase1Confirmation(payload, orderId, existingEditToken);
-    } else {
-      // Default / PHASE2
+    } else if (payload.emailType === 'PHASE2' || (!payload.emailType && payload.lineItems && payload.lineItems.length > 0)) {
       sendUpdateConfirmation(payload, orderId, existingEditToken);
     }
+    // No email sent for INFO (Step 1) updates
   } catch (emailError) {
     Logger.log('Failed to send update email: ' + emailError.toString());
   }
@@ -904,10 +904,13 @@ function sendPhase1Confirmation(payload, orderId, editToken) {
           
           <p><strong>Next Step: Product Selection</strong></p>
           <p>We will notify you when the product catalogue (Phase 2) is open for selection.</p>
-          <p>You can view or edit your details at any time:</p>
+          <p>You can view your submission details at any time:</p>
           <div style="text-align: center;">
-            <a href="${editUrl}" class="button">View / Edit Order</a>
+            <a href="${editUrl}" class="button">View Your Submission</a>
           </div>
+          <p style="font-size: 0.85em; color: #718096; margin-top: 15px; text-align: center;">
+            Note: Submitted information is now locked and cannot be edited.
+          </p>
         </div>
         <div class="footer">
           <p>&copy; ${new Date().getFullYear()} Catalogue Ploughing</p>
@@ -920,6 +923,74 @@ function sendPhase1Confirmation(payload, orderId, editToken) {
   MailApp.sendEmail({
     to: email,
     subject: `Requirements Received: ${orderId}`,
+    htmlBody: htmlBody
+  });
+}
+
+/**
+ * Send confirmation email for same requirements as last year
+ */
+function sendSameRequirementsConfirmation(payload, orderId, editToken) {
+  var email = payload.userInfo.email;
+  var name = payload.userInfo.name;
+  var department = payload.userInfo.department || 'N/A';
+  var hub = payload.userInfo.hub || 'N/A';
+  var editUrl = FRONTEND_URL + '?edit=' + editToken;
+  
+  var htmlBody = '<!DOCTYPE html>' +
+    '<html>' +
+    '<head>' +
+      '<style>' +
+        'body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }' +
+        '.container { max-width: 600px; margin: 0 auto; padding: 20px; }' +
+        '.header { background: #2b6cb0; color: white; padding: 25px; text-align: center; border-radius: 8px 8px 0 0; }' +
+        '.content { background: white; padding: 30px; border: 1px solid #e2e8f0; }' +
+        '.button { display: inline-block; padding: 12px 24px; background: #2b6cb0; color: white; text-decoration: none; border-radius: 6px; font-weight: bold; margin: 20px 0; }' +
+        '.summary { background: #f7fafc; padding: 15px; border-radius: 6px; margin: 20px 0; }' +
+        '.highlight { background: #ebf8ff; border-left: 4px solid #2b6cb0; padding: 15px; margin: 20px 0; border-radius: 4px; }' +
+        '.footer { text-align: center; color: #718096; font-size: 0.9em; margin-top: 30px; }' +
+      '</style>' +
+    '</head>' +
+    '<body>' +
+      '<div class="container">' +
+        '<div class="header">' +
+          '<h1 style="margin: 0;">Submission Confirmed</h1>' +
+          '<p style="margin: 10px 0 0 0;">Reference: ' + orderId + '</p>' +
+        '</div>' +
+        '<div class="content">' +
+          '<p>Hi ' + name + ',</p>' +
+          '<p>Thank you for your submission. You have indicated that your requirements are the same as last year.</p>' +
+          '<div class="highlight">' +
+            '<strong>Same Requirements as Last Year</strong><br>' +
+            'Your stand setup and specifications from the previous year will be carried forward. No further action is required from you.' +
+          '</div>' +
+          '<div class="summary">' +
+            '<h3 style="margin-top: 0;">Your Details:</h3>' +
+            '<ul style="list-style: none; padding: 0;">' +
+              '<li><strong>Name:</strong> ' + name + '</li>' +
+              '<li><strong>Department:</strong> ' + department + '</li>' +
+              '<li><strong>Hub:</strong> ' + hub + '</li>' +
+            '</ul>' +
+          '</div>' +
+          '<p>If you need to make any changes, please contact us directly.</p>' +
+          '<p>You can view your submission details at any time:</p>' +
+          '<div style="text-align: center;">' +
+            '<a href="' + editUrl + '" class="button">View Your Submission</a>' +
+          '</div>' +
+          '<p style="font-size: 0.85em; color: #718096; margin-top: 15px; text-align: center;">' +
+            'Note: Submitted information is now locked and cannot be edited.' +
+          '</p>' +
+        '</div>' +
+        '<div class="footer">' +
+          '<p>&copy; ' + new Date().getFullYear() + ' Catalogue Ploughing</p>' +
+        '</div>' +
+      '</div>' +
+    '</body>' +
+    '</html>';
+  
+  MailApp.sendEmail({
+    to: email,
+    subject: 'Submission Confirmed (Same Requirements): ' + orderId,
     htmlBody: htmlBody
   });
 }
@@ -970,7 +1041,7 @@ function sendOrderConfirmation(payload, orderId, editToken) {
     <body>
       <div class="container">
         <div class="header">
-          <h1 style="margin: 0;">✓ Order Confirmed!</h1>
+          <h1 style="margin: 0;">Order Confirmed!</h1>
           <p style="margin: 10px 0 0 0;">Thank you for your order, ${name}</p>
         </div>
         
@@ -1006,16 +1077,16 @@ function sendOrderConfirmation(payload, orderId, editToken) {
           </div>
           
           <div style="background: #FFF5E6; border-left: 4px solid #FFB84D; padding: 15px; margin: 20px 0; border-radius: 4px;">
-            <strong>📝 Order Status</strong><br>
-            You can view your order progress or continue to the next steps using the link below:
+            <strong>Order Confirmed</strong><br>
+            Your order has been submitted successfully. You can view your order details using the link below.
           </div>
           
           <center>
-            <a href="${editUrl}" class="button">View / Continue Your Order</a>
+            <a href="${editUrl}" class="button">View Your Order</a>
           </center>
           
           <p style="font-size: 0.9em; color: #718096; margin-top: 20px;">
-            Save this email for your records. The edit link will allow you to modify your order details at any time.
+            Save this email for your records. The link will allow you to view your order details at any time.
           </p>
         </div>
         
@@ -1068,7 +1139,7 @@ function sendUpdateConfirmation(payload, orderId, editToken) {
     <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
       <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
         <div style="background: #48bb78; color: white; padding: 30px; text-align: center; border-radius: 8px;">
-          <h1 style="margin: 0;">✓ Order Updated!</h1>
+          <h1 style="margin: 0;">Order Updated!</h1>
         </div>
         <div style="padding: 30px; background: white; border: 1px solid #e2e8f0;">
           <p>Hi ${name},</p>

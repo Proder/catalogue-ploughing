@@ -101,52 +101,55 @@ export function UserInfoForm({ userInfo, validationErrors, onChange, readOnly = 
                 {/* Mobile */}
                 <div className="space-y-2">
                     <label htmlFor="mobile" className="block text-sm font-semibold text-neutral-700">
-                        Mobile Number <span className="text-error-500">*</span>
+                        Mobile Number
                     </label>
                     <input
                         type="tel"
                         id="mobile"
-                        className={`input-field ${validationErrors.mobile ? 'input-error' : ''}`}
+                        className="input-field"
                         value={userInfo.mobile || ''}
                         onChange={(e) => onChange('mobile', e.target.value)}
                         placeholder="+353 00 000 0000"
                         disabled={readOnly}
                     />
-                    {validationErrors.mobile && (
-                        <p className="text-error-600 text-sm mt-1">{validationErrors.mobile}</p>
-                    )}
                 </div>
 
                 {/* Backup Name */}
                 <div className="space-y-2">
                     <label htmlFor="backupName" className="block text-sm font-semibold text-neutral-700">
-                        Back-up Contact - Full Name
+                        Back-up Contact - Full Name <span className="text-error-500">*</span>
                     </label>
                     <input
                         type="text"
                         id="backupName"
-                        className="input-field"
+                        className={`input-field ${validationErrors.backupName ? 'input-error' : ''}`}
                         value={userInfo.backupName || ''}
                         onChange={(e) => onChange('backupName', e.target.value)}
                         placeholder="Jane Doe"
                         disabled={readOnly}
                     />
+                    {validationErrors.backupName && (
+                        <p className="text-error-600 text-sm mt-1">{validationErrors.backupName}</p>
+                    )}
                 </div>
 
                 {/* Backup Email */}
                 <div className="space-y-2">
                     <label htmlFor="backupEmail" className="block text-sm font-semibold text-neutral-700">
-                        Back-up Contact Email
+                        Back-up Contact Email <span className="text-error-500">*</span>
                     </label>
                     <input
                         type="email"
                         id="backupEmail"
-                        className="input-field"
+                        className={`input-field ${validationErrors.backupEmail ? 'input-error' : ''}`}
                         value={userInfo.backupEmail || ''}
                         onChange={(e) => onChange('backupEmail', e.target.value)}
                         placeholder="jane@company.com"
                         disabled={readOnly}
                     />
+                    {validationErrors.backupEmail && (
+                        <p className="text-error-600 text-sm mt-1">{validationErrors.backupEmail}</p>
+                    )}
                 </div>
 
                 {/* Hub */}
@@ -218,8 +221,14 @@ export function validateUserInfo(userInfo: UserInfo): ValidationErrors {
     }
 
     if (!userInfo.department) errors.department = 'Department is required';
-    if (!userInfo.mobile?.trim()) errors.mobile = 'Mobile number is required';
     if (!userInfo.hub) errors.hub = 'Hub is required';
+
+    if (!userInfo.backupName?.trim()) errors.backupName = 'Back-up contact name is required';
+    if (!userInfo.backupEmail?.trim()) {
+        errors.backupEmail = 'Back-up contact email is required';
+    } else if (!EMAIL_REGEX.test(userInfo.backupEmail)) {
+        errors.backupEmail = 'Invalid email address';
+    }
 
     return errors;
 }

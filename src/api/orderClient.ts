@@ -53,7 +53,7 @@ interface SettingsResponse {
 export async function fetchCategories(): Promise<CategoriesResponse> {
     try {
         if (!API_BASE_URL) {
-            console.warn('⚠️ API_BASE_URL not configured');
+            console.warn('API_BASE_URL not configured');
             throw new Error('API_BASE_URL not configured');
         }
 
@@ -83,7 +83,7 @@ export async function fetchProductsByCategory(
 ): Promise<{ success: boolean; categoryId: string; categoryName: string; products: Product[]; message?: string }> {
     try {
         if (!API_BASE_URL) {
-            console.warn('⚠️ API_BASE_URL not configured');
+            console.warn('API_BASE_URL not configured');
             throw new Error('API_BASE_URL not configured');
         }
 
@@ -111,7 +111,7 @@ export async function fetchProductsByCategory(
 export async function fetchCatalogue(): Promise<CatalogueResponse> {
     try {
         if (!API_BASE_URL) {
-            console.warn('⚠️ API_BASE_URL not configured, using mock data');
+            console.warn('API_BASE_URL not configured, using mock data');
             throw new Error('API_BASE_URL not configured');
         }
 
@@ -134,7 +134,7 @@ export async function fetchCatalogue(): Promise<CatalogueResponse> {
 export async function fetchSettings(): Promise<SettingsResponse> {
     try {
         if (!API_BASE_URL) {
-            console.warn('⚠️ API_BASE_URL not configured');
+            console.warn('API_BASE_URL not configured');
             // Return default if no API
             return { success: true, settings: { phase2Enabled: false } };
         }
@@ -165,11 +165,11 @@ export async function createOrder(
 ): Promise<CreateOrderResponse> {
     try {
         if (!API_BASE_URL) {
-            console.error('❌ API_BASE_URL not configured');
+            console.error('API_BASE_URL not configured');
             throw new Error('API not configured. Please set VITE_API_BASE_URL in .env');
         }
 
-        console.log('📦 Submitting order to Apps Script:', orderPayload);
+        console.log('Submitting order to Apps Script:', orderPayload);
 
         const response = await fetch(API_BASE_URL, {
             method: 'POST',
@@ -187,7 +187,7 @@ export async function createOrder(
         }
 
         const result = await response.json();
-        console.log('✅ Order created:', result);
+        console.log('Order created:', result);
         return result;
     } catch (error) {
         console.error('Failed to create order:', error);
@@ -204,7 +204,7 @@ export async function loadOrder(orderId: string): Promise<LoadOrderResponse> {
             throw new Error('API_BASE_URL not configured');
         }
 
-        console.log('📄 Loading order:', orderId);
+        console.log('Loading order:', orderId);
 
         const response = await fetch(
             `${API_BASE_URL}?action=getOrder&orderId=${encodeURIComponent(orderId)}`
@@ -234,7 +234,7 @@ export async function loadOrderByToken(token: string): Promise<LoadOrderResponse
             throw new Error('API_BASE_URL not configured');
         }
 
-        console.log('🔑 Loading order by token');
+        console.log('Loading order by token');
 
         const response = await fetch(
             `${API_BASE_URL}?action=getOrderByToken&token=${encodeURIComponent(token)}`
@@ -247,7 +247,7 @@ export async function loadOrderByToken(token: string): Promise<LoadOrderResponse
         const result = await response.json();
 
         if (result.success && result.order) {
-            console.log('✅ Order loaded from edit link');
+            console.log('Order loaded from edit link');
         }
 
         return result;
@@ -274,7 +274,7 @@ export async function updateOrder(
             throw new Error('API_BASE_URL not configured');
         }
 
-        console.log('✏️ Updating order:', orderId);
+        console.log('Updating order:', orderId);
 
         const response = await fetch(API_BASE_URL, {
             method: 'POST',
@@ -294,7 +294,7 @@ export async function updateOrder(
         }
 
         const result = await response.json();
-        console.log('✅ Order updated:', result);
+        console.log('Order updated:', result);
         return result;
     } catch (error) {
         console.error('Failed to update order:', error);

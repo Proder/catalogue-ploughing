@@ -45,6 +45,8 @@ export function OrderPage() {
     // Read-only states for submitted steps
     const [infoSubmitted, setInfoSubmitted] = useState(false);
     const [phase1Submitted, setPhase1Submitted] = useState(false);
+    const [infoExpanded, setInfoExpanded] = useState(false);
+    const [phase1Expanded, setPhase1Expanded] = useState(false);
 
     // Catalogue state
     const [categories, setCategories] = useState<Array<{ id: string; name: string; sortOrder?: number }>>([]);
@@ -86,7 +88,7 @@ export function OrderPage() {
         // Fetch settings first
         fetchSettings().then(res => {
             if (mounted && res.success) {
-                console.log('⚙️ Settings loaded:', res.settings);
+                console.log('Settings loaded:', res.settings);
                 setPhase2Enabled(res.settings.phase2Enabled);
             }
         });
@@ -110,7 +112,7 @@ export function OrderPage() {
             })
             .catch(error => {
                 if (!mounted) return;
-                console.warn('⚠️ Failed to load categories', error);
+                console.warn('Failed to load categories', error);
                 setCatalogueError('Using offline catalogue data');
                 // Fallback logic omitted for brevity, similar to original
             })
@@ -177,7 +179,13 @@ export function OrderPage() {
                         }
 
                         // Determine current step based on data and settings
-                        if (!order.phase1Data) {
+                        if (order.userInfo.sameRequirements === true) {
+                            // Same requirements: show confirmation directly
+                            setOrderPayload(order);
+                            setConfirmedOrderId(order.orderId || null);
+                            setConfirmedEditToken(editTokenParam);
+                            setIsConfirmed(true);
+                        } else if (!order.phase1Data) {
                             setCurrentStep('PHASE1');
                         } else if (order.settings?.phase2Enabled) {
                             setCurrentStep('PHASE2');
@@ -291,6 +299,9 @@ export function OrderPage() {
 
         setIsSubmitting(true);
         try {
+            // Check if user selected "same requirements as last year"
+            const isSameRequirements = currentStep === 'INFO' && userInfo.sameRequirements === true;
+
             // Prepare payload
             const payload: OrderPayload = {
                 userInfo,
@@ -298,6 +309,11 @@ export function OrderPage() {
                 lineItems: currentStep === 'PHASE2' ? lineItems : [], // Only send items in Phase 2
                 totals: { total: currentStep === 'PHASE2' ? total : 0 },
                 timestamp: new Date().toISOString(),
+                emailType: isSameRequirements
+                    ? 'SAME_REQUIREMENTS'
+                    : currentStep === 'PHASE1'
+                        ? 'PHASE1'
+                        : (currentStep === 'PHASE2' ? 'PHASE2' : undefined),
             };
 
             let response;
@@ -314,8 +330,15 @@ export function OrderPage() {
                 if (response.editToken) setEditToken(response.editToken);
                 setEditMode(true); // Switch to edit mode after first create
 
-                // Move to next step
-                if (currentStep === 'INFO') {
+                if (isSameRequirements) {
+                    // Same requirements: skip Phase 1 & 2, go directly to confirmation
+                    setInfoSubmitted(true);
+                    setOrderPayload(payload);
+                    setConfirmedOrderId(response.orderId || editOrderId);
+                    setConfirmedEditToken(response.editToken || editToken);
+                    setIsConfirmed(true);
+                    window.scrollTo(0, 0);
+                } else if (currentStep === 'INFO') {
                     setInfoSubmitted(true);
                     setCurrentStep('PHASE1');
                     scrollToSection(phase1Ref);
@@ -341,17 +364,7 @@ export function OrderPage() {
         }
     };
 
-    const handleEditStep = (step: Step) => {
-        if (step === 'INFO') {
-            setInfoSubmitted(false);
-            setCurrentStep('INFO');
-            scrollToSection(infoRef);
-        } else if (step === 'PHASE1') {
-            setPhase1Submitted(false);
-            setCurrentStep('PHASE1');
-            scrollToSection(phase1Ref);
-        }
-    };
+
 
     // Render Logic
 
@@ -394,30 +407,45 @@ export function OrderPage() {
             <div ref={infoRef} className="mb-6 transition-all duration-500 ease-in-out">
                 {currentStep !== 'INFO' && infoSubmitted ? (
                     // Collapsed Summary View
-                    <div
-                        onClick={() => handleEditStep('INFO')}
-                        className="card-base p-6 flex flex-col md:flex-row justify-between items-center cursor-pointer hover:border-primary-300 hover:shadow-md transition-all group"
-                    >
-                        <div className="flex items-center gap-4">
-                            <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-green-600">
-                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                </svg>
-                            </div>
-                            <div>
-                                <h3 className="font-bold text-lg text-neutral-800 group-hover:text-primary-700 transition-colors">Step 1: Information</h3>
-                                <div className="text-neutral-500 text-sm mt-1 flex flex-wrap gap-x-4 gap-y-1">
-                                    <span className="font-medium">{userInfo.name}</span>
-                                    <span className="hidden md:inline text-neutral-300">|</span>
-                                    <span>{userInfo.department}</span>
-                                    <span className="hidden md:inline text-neutral-300">|</span>
-                                    <span>{userInfo.email}</span>
+                    <div className="card-base overflow-hidden">
+                        <div className="p-6 flex flex-col md:flex-row justify-between items-center">
+                            <div className="flex items-center gap-4">
+                                <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-green-600">
+                                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                    </svg>
+                                </div>
+                                <div>
+                                    <h3 className="font-bold text-lg text-neutral-800">Step 1: Information</h3>
+                                    <div className="text-neutral-500 text-sm mt-1 flex flex-wrap gap-x-4 gap-y-1">
+                                        <span className="font-medium">{userInfo.name}</span>
+                                        <span className="hidden md:inline text-neutral-300">|</span>
+                                        <span>{userInfo.department}</span>
+                                        <span className="hidden md:inline text-neutral-300">|</span>
+                                        <span>{userInfo.email}</span>
+                                    </div>
                                 </div>
                             </div>
+                            <button
+                                onClick={() => setInfoExpanded(!infoExpanded)}
+                                className="mt-4 md:mt-0 px-4 py-2 text-sm font-semibold text-primary-600 bg-primary-50 rounded-lg hover:bg-primary-100 transition-colors flex items-center gap-2"
+                            >
+                                <svg className={`w-4 h-4 transition-transform ${infoExpanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                </svg>
+                                {infoExpanded ? 'Collapse' : 'View'}
+                            </button>
                         </div>
-                        <button className="mt-4 md:mt-0 px-4 py-2 text-sm font-semibold text-primary-600 bg-primary-50 rounded-lg group-hover:bg-primary-100 transition-colors">
-                            Edit
-                        </button>
+                        {infoExpanded && (
+                            <div className="border-t border-neutral-200 bg-neutral-50">
+                                <UserInfoForm
+                                    userInfo={userInfo}
+                                    validationErrors={{} as any}
+                                    onChange={() => { }}
+                                    readOnly
+                                />
+                            </div>
+                        )}
                     </div>
                 ) : (
                     // Full Form View
@@ -445,28 +473,43 @@ export function OrderPage() {
                 <div ref={phase1Ref} className="mb-6 transition-all duration-500 ease-in-out">
                     {currentStep !== 'PHASE1' && phase1Submitted ? (
                         // Collapsed Summary View
-                        <div
-                            onClick={() => handleEditStep('PHASE1')}
-                            className="card-base p-6 flex flex-col md:flex-row justify-between items-center cursor-pointer hover:border-primary-300 hover:shadow-md transition-all group"
-                        >
-                            <div className="flex items-center gap-4">
-                                <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-green-600">
-                                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                    </svg>
-                                </div>
-                                <div>
-                                    <h3 className="font-bold text-lg text-neutral-800 group-hover:text-primary-700 transition-colors">Phase 1: Requirements</h3>
-                                    <div className="text-neutral-500 text-sm mt-1 flex flex-wrap gap-x-4 gap-y-1">
-                                        <span className="font-medium">Footprint: {phase1Data.footprint}</span>
-                                        <span className="hidden md:inline text-neutral-300">|</span>
-                                        <span>Shared Storage: {phase1Data.sharedStorage ? 'Yes' : 'No'}</span>
+                        <div className="card-base overflow-hidden">
+                            <div className="p-6 flex flex-col md:flex-row justify-between items-center">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-green-600">
+                                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <h3 className="font-bold text-lg text-neutral-800">Phase 1: Requirements</h3>
+                                        <div className="text-neutral-500 text-sm mt-1 flex flex-wrap gap-x-4 gap-y-1">
+                                            <span className="font-medium">Footprint: {phase1Data.footprint}</span>
+                                            <span className="hidden md:inline text-neutral-300">|</span>
+                                            <span>Shared Storage: {phase1Data.sharedStorage ? 'Yes' : 'No'}</span>
+                                        </div>
                                     </div>
                                 </div>
+                                <button
+                                    onClick={() => setPhase1Expanded(!phase1Expanded)}
+                                    className="mt-4 md:mt-0 px-4 py-2 text-sm font-semibold text-primary-600 bg-primary-50 rounded-lg hover:bg-primary-100 transition-colors flex items-center gap-2"
+                                >
+                                    <svg className={`w-4 h-4 transition-transform ${phase1Expanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                    </svg>
+                                    {phase1Expanded ? 'Collapse' : 'View'}
+                                </button>
                             </div>
-                            <button className="mt-4 md:mt-0 px-4 py-2 text-sm font-semibold text-primary-600 bg-primary-50 rounded-lg group-hover:bg-primary-100 transition-colors">
-                                Edit
-                            </button>
+                            {phase1Expanded && (
+                                <div className="border-t border-neutral-200 bg-neutral-50">
+                                    <Phase1Form
+                                        data={phase1Data}
+                                        validationErrors={{} as any}
+                                        onChange={() => { }}
+                                        readOnly
+                                    />
+                                </div>
+                            )}
                         </div>
                     ) : (
                         // Full Form View
