@@ -7,6 +7,7 @@ interface OrderSummaryProps {
     isValid: boolean;
     isSubmitting: boolean;
     onSubmit: () => void;
+    buttonText?: string;
 }
 
 export function OrderSummary({
@@ -15,6 +16,7 @@ export function OrderSummary({
     isValid,
     isSubmitting,
     onSubmit,
+    buttonText,
 }: OrderSummaryProps) {
     const [isOpen, setIsOpen] = useState(false);
     const itemCount = lineItems.length;
@@ -81,6 +83,28 @@ export function OrderSummary({
                             </div>
                         </div>
 
+                        {/* Product List */}
+                        {lineItems.length > 0 && (
+                            <div className="space-y-3 mb-6">
+                                {lineItems.map((item) => (
+                                    <div
+                                        key={item.productId}
+                                        className="flex justify-between items-start p-3 rounded-lg bg-neutral-50 border border-neutral-100"
+                                    >
+                                        <div className="flex-1 min-w-0 mr-3">
+                                            <p className="text-sm font-semibold text-neutral-800 truncate">{item.productName}</p>
+                                            <p className="text-xs text-neutral-500 mt-0.5">
+                                                {item.quantity} x {'\u20AC'}{item.unitPrice.toFixed(2)}
+                                            </p>
+                                        </div>
+                                        <span className="text-sm font-bold text-primary-600 whitespace-nowrap">
+                                            {'\u20AC'}{item.lineTotal.toFixed(2)}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
                         {/* Total */}
                         <div className="rounded-xl bg-gradient-to-r from-primary-50 to-secondary-50 border-2 border-primary-200 p-4 sm:p-5 mb-6">
                             <div className="flex justify-between items-center">
@@ -132,7 +156,7 @@ export function OrderSummary({
                                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                                     </svg>
-                                    Submit Order
+                                    {buttonText || 'Submit Order'}
                                 </>
                             )}
                         </button>

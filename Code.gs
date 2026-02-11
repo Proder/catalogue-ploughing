@@ -11,7 +11,8 @@ const ORDERS_SHEET = 'Orders';
 const CATEGORIES_SHEET = 'Categories';
 const PRODUCTS_SHEET = 'Products';
 const ALLOWED_USERS_SHEET = 'AllowedUsers';  // For authentication
-const FRONTEND_URL = 'http://localhost:5174';  // Update with your deployed frontend URL
+const SETTINGS_SHEET = 'Settings'; // New Settings sheet
+const FRONTEND_URL = 'http://localhost:5173';  // Update with your deployed frontend URL
 
 
 // ========================================
@@ -46,6 +47,9 @@ function doGet(e) {
       case 'getCatalogue':
         result = getCatalogue();
         break;
+      case 'getSettings': // New endpoint
+         result = getSettings();
+         break;
       
       // Order endpoints
       case 'getOrder':
@@ -219,13 +223,13 @@ function sendOTP(email) {
         <body>
           <div class="container">
             <div class="card">
-              <div class="logo">📦 Catalogue Ploughing</div>
+              <div class="logo">Catalogue Ploughing</div>
               <div class="title">Your Access Code</div>
               <div class="subtitle">Enter this code to access the product catalogue</div>
               <div class="otp-box">${otp}</div>
               <div class="note">
-                ⏱️ This code expires in 5 minutes<br>
-                🔒 Don't share this code with anyone
+                This code expires in 5 minutes<br>
+                Don't share this code with anyone
               </div>
             </div>
             <div class="footer">
@@ -454,6 +458,41 @@ function getProductsByCategory(categoryId) {
 
 
 // ========================================
+// SETTINGS OPERATIONS
+// ========================================
+
+/**
+ * Get application settings (e.g., Phase 2 enabled status)
+ */
+function getSettings() {
+   const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+   let sheet = ss.getSheetByName(SETTINGS_SHEET);
+   
+   // Create Settings sheet if it doesn't exist (First run setup)
+   if (!sheet) {
+     sheet = ss.insertSheet(SETTINGS_SHEET);
+     sheet.appendRow(['Key', 'Value']);
+     sheet.appendRow(['PHASE_2_ENABLED', 'FALSE']);
+   }
+   
+   const data = sheet.getDataRange().getValues();
+   let settings = {
+     phase2Enabled: false
+   };
+   
+   // Look for PHASE_2_ENABLED key
+   for (let i = 1; i < data.length; i++) {
+     if (data[i][0] === 'PHASE_2_ENABLED') {
+       const val = data[i][1];
+       settings.phase2Enabled = val === true || val === 'TRUE' || val === 'true';
+       break;
+     }
+   }
+   
+   return { success: true, settings: settings };
+}
+
+// ========================================
 // ORDER OPERATIONS
 // ========================================
 
@@ -472,7 +511,13 @@ function createOrder(payload) {
   const timestamp = payload.timestamp || new Date().toISOString();
   const irelandDate = new Date(timestamp).toLocaleString('en-IE', { timeZone: 'Europe/Dublin' });
   
-  // Prepare row data - simplified to just total (10 columns including EditToken)
+  // Prepare row data
+  // Columns:
+  // A: OrderId, B: Date, C: Name, D: Email, E: Company, F: Phone, G: Total, H: Status, I: LineItems, J: EditToken
+  // NEW: K: Dept, L: Mobile, M: BackupName, N: BackupEmail, O: Hub, P: SameReq, Q: Phase1JSON
+  
+  const phase1Json = payload.phase1Data ? JSON.stringify(payload.phase1Data) : '';
+  
   const row = [
     orderId,
     irelandDate,
@@ -480,10 +525,18 @@ function createOrder(payload) {
     payload.userInfo.email,
     payload.userInfo.company || '',
     payload.userInfo.phone || '',
-    payload.totals.total,
+    payload.totals.total || 0,
     'pending',
-    JSON.stringify(payload.lineItems),
-    editToken  // Column J - EditToken
+    JSON.stringify(payload.lineItems || []),
+    editToken,  // Column J - EditToken
+    // New Columns
+    payload.userInfo.department || '',
+    payload.userInfo.mobile || '',
+    payload.userInfo.backupName || '',
+    payload.userInfo.backupEmail || '',
+    payload.userInfo.hub || '',
+    payload.userInfo.sameRequirements || false,
+    phase1Json
   ];
   
   sheet.appendRow(row);
@@ -502,12 +555,18 @@ function createOrder(payload) {
     Logger.log('Failed to update SupplierSummary sheet: ' + summaryError.toString());
   }
   
-  // Send confirmation email
+  // Send confirmation email ONLY for Phase 1, Phase 2, and Same Requirements submissions
   try {
-    sendOrderConfirmation(payload, orderId, editToken);
+    if (payload.emailType === 'SAME_REQUIREMENTS') {
+      sendSameRequirementsConfirmation(payload, orderId, editToken);
+    } else if (payload.emailType === 'PHASE1') {
+      sendPhase1Confirmation(payload, orderId, editToken);
+    } else if (payload.emailType === 'PHASE2' || (!payload.emailType && payload.lineItems && payload.lineItems.length > 0)) {
+      sendOrderConfirmation(payload, orderId, editToken);
+    }
+    // No email sent for INFO (Step 1) submissions
   } catch (emailError) {
     Logger.log('Failed to send email: ' + emailError.toString());
-    // Don't fail the order creation if email fails
   }
   
   return {
@@ -538,22 +597,45 @@ function getOrder(orderId) {
     return { success: false, order: null, message: 'Order not found' };
   }
   
+  // Get settings to check phase 2 status
+  const settingsResult = getSettings();
+  
   // Reconstruct order payload
+  // Parse Phase 1 JSON if exists
+  let phase1Data = undefined;
+  if (orderRow[16]) { // Column Q is index 16
+      try {
+          phase1Data = JSON.parse(orderRow[16]);
+      } catch (e) {
+          Logger.log('Failed to parse Phase 1 JSON');
+      }
+  }
+
   const order = {
     orderId: orderRow[0],
     userInfo: {
       name: orderRow[2],
       email: orderRow[3],
       company: orderRow[4] || undefined,
-      phone: orderRow[5] || undefined
+      phone: orderRow[5] || undefined,
+      // New fields
+      department: orderRow[10] || '',
+      mobile: orderRow[11] || '',
+      backupName: orderRow[12] || '',
+      backupEmail: orderRow[13] || '',
+      hub: orderRow[14] || '',
+      sameRequirements: orderRow[15] === true || orderRow[15] === 'TRUE'
     },
-    lineItems: JSON.parse(orderRow[8]),
+    lineItems: orderRow[8] ? JSON.parse(orderRow[8]) : [],
     totals: {
       total: orderRow[6]
     },
+    phase1Data: phase1Data,
     timestamp: orderRow[1],
     status: orderRow[7],
-    editToken: orderRow[9]  // Column J
+    editToken: orderRow[9],  // Column J
+    // Include settings info for frontend decision making
+    settings: settingsResult.settings
   };
   
   return { success: true, order: order };
@@ -579,6 +661,19 @@ function getOrderByToken(token) {
     return { success: false, order: null, message: 'Order not found or invalid edit link' };
   }
   
+  // Get settings to check phase 2 status
+  const settingsResult = getSettings();
+  
+  // Parse Phase 1 JSON if exists
+  let phase1Data = undefined;
+  if (orderRow[16]) { // Column Q is index 16
+      try {
+          phase1Data = JSON.parse(orderRow[16]);
+      } catch (e) {
+          Logger.log('Failed to parse Phase 1 JSON');
+      }
+  }
+
   // Reconstruct order payload
   const order = {
     orderId: orderRow[0],
@@ -586,15 +681,24 @@ function getOrderByToken(token) {
       name: orderRow[2],
       email: orderRow[3],
       company: orderRow[4] || undefined,
-      phone: orderRow[5] || undefined
+      phone: orderRow[5] || undefined,
+       // New fields
+      department: orderRow[10] || '',
+      mobile: orderRow[11] || '',
+      backupName: orderRow[12] || '',
+      backupEmail: orderRow[13] || '',
+      hub: orderRow[14] || '',
+      sameRequirements: orderRow[15] === true || orderRow[15] === 'TRUE'
     },
-    lineItems: JSON.parse(orderRow[8]),
+    lineItems: orderRow[8] ? JSON.parse(orderRow[8]) : [],
     totals: {
       total: orderRow[6]
     },
+    phase1Data: phase1Data,
     timestamp: orderRow[1],
     status: orderRow[7],
-    editToken: orderRow[9]
+    editToken: orderRow[9],
+    settings: settingsResult.settings
   };
   
   return { success: true, order: order };
@@ -636,8 +740,10 @@ function updateOrder(orderId, payload, editToken) {
   const timestamp = payload.timestamp || new Date().toISOString();
   const irelandDate = new Date(timestamp).toLocaleString('en-IE', { timeZone: 'Europe/Dublin' });
   
-  // Update row data (10 columns including EditToken)
-  const range = sheet.getRange(rowIndex, 1, 1, 10);
+  const phase1Json = payload.phase1Data ? JSON.stringify(payload.phase1Data) : '';
+  
+  // Update row data (All 17 columns)
+  const range = sheet.getRange(rowIndex, 1, 1, 17);
   range.setValues([[
     orderId,
     irelandDate,
@@ -645,10 +751,18 @@ function updateOrder(orderId, payload, editToken) {
     payload.userInfo.email,
     payload.userInfo.company || '',
     payload.userInfo.phone || '',
-    payload.totals.total,
+    payload.totals.total || 0,
     'pending',
-    JSON.stringify(payload.lineItems),
-    existingEditToken  // Keep the same edit token
+    JSON.stringify(payload.lineItems || []),
+    existingEditToken,  // Keep the same edit token
+    // New Columns
+    payload.userInfo.department || '',
+    payload.userInfo.mobile || '',
+    payload.userInfo.backupName || '',
+    payload.userInfo.backupEmail || '',
+    payload.userInfo.hub || '',
+    payload.userInfo.sameRequirements || false,
+    phase1Json
   ]]);
   
   // Update OrderDetails sheet
@@ -667,7 +781,14 @@ function updateOrder(orderId, payload, editToken) {
   
   // Send update confirmation email
   try {
-    sendUpdateConfirmation(payload, orderId, existingEditToken);
+    if (payload.emailType === 'SAME_REQUIREMENTS') {
+      sendSameRequirementsConfirmation(payload, orderId, existingEditToken);
+    } else if (payload.emailType === 'PHASE1') {
+      sendPhase1Confirmation(payload, orderId, existingEditToken);
+    } else if (payload.emailType === 'PHASE2' || (!payload.emailType && payload.lineItems && payload.lineItems.length > 0)) {
+      sendUpdateConfirmation(payload, orderId, existingEditToken);
+    }
+    // No email sent for INFO (Step 1) updates
   } catch (emailError) {
     Logger.log('Failed to send update email: ' + emailError.toString());
   }
@@ -683,6 +804,196 @@ function updateOrder(orderId, payload, editToken) {
 // ========================================
 // EMAIL FUNCTIONS
 // ========================================
+
+/**
+ * Send Step 1 Confirmation (Order Started)
+ */
+function sendStep1Confirmation(payload, orderId, editToken) {
+  const email = payload.userInfo.email;
+  const name = payload.userInfo.name;
+  const editUrl = `${FRONTEND_URL}?edit=${editToken}`;
+  
+  const htmlBody = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: #4a5568; color: white; padding: 25px; text-align: center; border-radius: 8px 8px 0 0; }
+        .content { background: white; padding: 30px; border: 1px solid #e2e8f0; }
+        .button { display: inline-block; padding: 12px 24px; background: #667eea; color: white; text-decoration: none; border-radius: 6px; font-weight: bold; margin: 20px 0; }
+        .footer { text-align: center; color: #718096; font-size: 0.9em; margin-top: 30px; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1 style="margin: 0;">Order Started</h1>
+          <p style="margin: 10px 0 0 0;">Reference: ${orderId}</p>
+        </div>
+        <div class="content">
+          <p>Hi ${name},</p>
+          <p>Thank you for starting your order process for the Catalogue Ploughing Championships.</p>
+          <p><strong>We have your contact information.</strong></p>
+          <p>Please click the link below to continue and provide your exhibition requirements (Step 2).</p>
+          <div style="text-align: center;">
+            <a href="${editUrl}" class="button">Continue Your Order</a>
+          </div>
+          <p>If the button doesn't work, copy and paste this link:</p>
+          <p style="font-size: 0.9em; color: #718096;">${editUrl}</p>
+        </div>
+        <div class="footer">
+          <p>&copy; ${new Date().getFullYear()} Catalogue Ploughing</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+  
+  MailApp.sendEmail({
+    to: email,
+    subject: `Order Started: ${orderId}`,
+    htmlBody: htmlBody
+  });
+}
+
+/**
+ * Send Phase 1 Confirmation (Requirements Received)
+ */
+function sendPhase1Confirmation(payload, orderId, editToken) {
+  const email = payload.userInfo.email;
+  const name = payload.userInfo.name;
+  const editUrl = `${FRONTEND_URL}?edit=${editToken}`;
+  
+  // Parse phase 1 data to show back to user
+  const p1 = payload.phase1Data || {};
+  
+  const htmlBody = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: #805ad5; color: white; padding: 25px; text-align: center; border-radius: 8px 8px 0 0; }
+        .content { background: white; padding: 30px; border: 1px solid #e2e8f0; }
+        .button { display: inline-block; padding: 12px 24px; background: #805ad5; color: white; text-decoration: none; border-radius: 6px; font-weight: bold; margin: 20px 0; }
+        .summary { background: #f7fafc; padding: 15px; border-radius: 6px; margin: 20px 0; }
+        .footer { text-align: center; color: #718096; font-size: 0.9em; margin-top: 30px; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1 style="margin: 0;">Requirements Received</h1>
+          <p style="margin: 10px 0 0 0;">Reference: ${orderId}</p>
+        </div>
+        <div class="content">
+          <p>Hi ${name},</p>
+          <p>Thank you. We have received your exhibition requirements.</p>
+          
+          <div class="summary">
+            <h3 style="margin-top: 0;">Your Requirements:</h3>
+            <ul style="list-style: none; padding: 0;">
+              <li><strong>Footprint:</strong> ${p1.footprint || 'N/A'}</li>
+              <li><strong>Shared Storage:</strong> ${p1.sharedStorage ? 'Yes' : 'No'}</li>
+              ${p1.sharedStorage ? `<li><strong>Storage Size:</strong> ${p1.storageSize}</li>` : ''}
+            </ul>
+          </div>
+          
+          <p><strong>Next Step: Product Selection</strong></p>
+          <p>We will notify you when the product catalogue (Phase 2) is open for selection.</p>
+          <p>You can view your submission details at any time:</p>
+          <div style="text-align: center;">
+            <a href="${editUrl}" class="button">View Your Submission</a>
+          </div>
+          <p style="font-size: 0.85em; color: #718096; margin-top: 15px; text-align: center;">
+            Note: Submitted information is now locked and cannot be edited.
+          </p>
+        </div>
+        <div class="footer">
+          <p>&copy; ${new Date().getFullYear()} Catalogue Ploughing</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+  
+  MailApp.sendEmail({
+    to: email,
+    subject: `Requirements Received: ${orderId}`,
+    htmlBody: htmlBody
+  });
+}
+
+/**
+ * Send confirmation email for same requirements as last year
+ */
+function sendSameRequirementsConfirmation(payload, orderId, editToken) {
+  var email = payload.userInfo.email;
+  var name = payload.userInfo.name;
+  var department = payload.userInfo.department || 'N/A';
+  var hub = payload.userInfo.hub || 'N/A';
+  var editUrl = FRONTEND_URL + '?edit=' + editToken;
+  
+  var htmlBody = '<!DOCTYPE html>' +
+    '<html>' +
+    '<head>' +
+      '<style>' +
+        'body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }' +
+        '.container { max-width: 600px; margin: 0 auto; padding: 20px; }' +
+        '.header { background: #2b6cb0; color: white; padding: 25px; text-align: center; border-radius: 8px 8px 0 0; }' +
+        '.content { background: white; padding: 30px; border: 1px solid #e2e8f0; }' +
+        '.button { display: inline-block; padding: 12px 24px; background: #2b6cb0; color: white; text-decoration: none; border-radius: 6px; font-weight: bold; margin: 20px 0; }' +
+        '.summary { background: #f7fafc; padding: 15px; border-radius: 6px; margin: 20px 0; }' +
+        '.highlight { background: #ebf8ff; border-left: 4px solid #2b6cb0; padding: 15px; margin: 20px 0; border-radius: 4px; }' +
+        '.footer { text-align: center; color: #718096; font-size: 0.9em; margin-top: 30px; }' +
+      '</style>' +
+    '</head>' +
+    '<body>' +
+      '<div class="container">' +
+        '<div class="header">' +
+          '<h1 style="margin: 0;">Submission Confirmed</h1>' +
+          '<p style="margin: 10px 0 0 0;">Reference: ' + orderId + '</p>' +
+        '</div>' +
+        '<div class="content">' +
+          '<p>Hi ' + name + ',</p>' +
+          '<p>Thank you for your submission. You have indicated that your requirements are the same as last year.</p>' +
+          '<div class="highlight">' +
+            '<strong>Same Requirements as Last Year</strong><br>' +
+            'Your stand setup and specifications from the previous year will be carried forward. No further action is required from you.' +
+          '</div>' +
+          '<div class="summary">' +
+            '<h3 style="margin-top: 0;">Your Details:</h3>' +
+            '<ul style="list-style: none; padding: 0;">' +
+              '<li><strong>Name:</strong> ' + name + '</li>' +
+              '<li><strong>Department:</strong> ' + department + '</li>' +
+              '<li><strong>Hub:</strong> ' + hub + '</li>' +
+            '</ul>' +
+          '</div>' +
+          '<p>If you need to make any changes, please contact us directly.</p>' +
+          '<p>You can view your submission details at any time:</p>' +
+          '<div style="text-align: center;">' +
+            '<a href="' + editUrl + '" class="button">View Your Submission</a>' +
+          '</div>' +
+          '<p style="font-size: 0.85em; color: #718096; margin-top: 15px; text-align: center;">' +
+            'Note: Submitted information is now locked and cannot be edited.' +
+          '</p>' +
+        '</div>' +
+        '<div class="footer">' +
+          '<p>&copy; ' + new Date().getFullYear() + ' Catalogue Ploughing</p>' +
+        '</div>' +
+      '</div>' +
+    '</body>' +
+    '</html>';
+  
+  MailApp.sendEmail({
+    to: email,
+    subject: 'Submission Confirmed (Same Requirements): ' + orderId,
+    htmlBody: htmlBody
+  });
+}
 
 /**
  * Send order confirmation email with edit link
@@ -730,7 +1041,7 @@ function sendOrderConfirmation(payload, orderId, editToken) {
     <body>
       <div class="container">
         <div class="header">
-          <h1 style="margin: 0;">✓ Order Confirmed!</h1>
+          <h1 style="margin: 0;">Order Confirmed!</h1>
           <p style="margin: 10px 0 0 0;">Thank you for your order, ${name}</p>
         </div>
         
@@ -766,16 +1077,16 @@ function sendOrderConfirmation(payload, orderId, editToken) {
           </div>
           
           <div style="background: #FFF5E6; border-left: 4px solid #FFB84D; padding: 15px; margin: 20px 0; border-radius: 4px;">
-            <strong>📝 Need to make changes?</strong><br>
-            You can edit your order anytime using the link below:
+            <strong>Order Confirmed</strong><br>
+            Your order has been submitted successfully. You can view your order details using the link below.
           </div>
           
           <center>
-            <a href="${editUrl}" class="button">Edit Your Order</a>
+            <a href="${editUrl}" class="button">View Your Order</a>
           </center>
           
           <p style="font-size: 0.9em; color: #718096; margin-top: 20px;">
-            Save this email for your records. The edit link will allow you to modify your order details at any time.
+            Save this email for your records. The link will allow you to view your order details at any time.
           </p>
         </div>
         
@@ -828,7 +1139,7 @@ function sendUpdateConfirmation(payload, orderId, editToken) {
     <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
       <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
         <div style="background: #48bb78; color: white; padding: 30px; text-align: center; border-radius: 8px;">
-          <h1 style="margin: 0;">✓ Order Updated!</h1>
+          <h1 style="margin: 0;">Order Updated!</h1>
         </div>
         <div style="padding: 30px; background: white; border: 1px solid #e2e8f0;">
           <p>Hi ${name},</p>

@@ -38,6 +38,20 @@ export interface UserInfo {
   email: string;
   company?: string;
   phone?: string;
+  // New fields for Step 1
+  department: string;
+  mobile: string;
+  backupName: string;
+  backupEmail: string;
+  hub: string;
+  sameRequirements: boolean;
+}
+
+export interface Phase1Data {
+  footprint: string; // Width x Depth
+  locationRequests?: string;
+  sharedStorage: boolean;
+  storageSize?: string; // If sharedStorage is true
 }
 
 export interface OrderTotals {
@@ -46,13 +60,23 @@ export interface OrderTotals {
 
 export interface OrderPayload {
   userInfo: UserInfo;
+  phase1Data?: Phase1Data; // Optional as it might be filled later
   lineItems: OrderLineItem[];
   totals: OrderTotals;
   timestamp: string;
+  emailType?: 'INFO' | 'PHASE1' | 'PHASE2' | 'SAME_REQUIREMENTS';
 }
 
 // Form validation state
 export interface ValidationErrors {
   name?: string;
   email?: string;
+  department?: string;
+  mobile?: string;
+  backupName?: string;
+  backupEmail?: string;
+  hub?: string;
+  // Phase 1 validation
+  footprint?: string;
+  storageSize?: string;
 }
