@@ -462,7 +462,7 @@ export function OrderPage() {
                                 disabled={isSubmitting}
                                 className="btn-primary w-full md:w-auto px-12 py-3 text-lg"
                             >
-                                {isSubmitting ? 'Saving...' : 'Next: Requirements'}
+                                {isSubmitting ? 'Saving...' : (userInfo.sameRequirements ? 'Submit' : 'Move to Phase 1')}
                             </button>
                         </div>
                     </div>
