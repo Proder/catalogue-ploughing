@@ -339,11 +339,12 @@ export function OrderPage() {
                     setIsConfirmed(true);
                     window.scrollTo(0, 0);
                 } else if (currentStep === 'INFO') {
-                    setInfoSubmitted(true);
+                    // Don't mark as submitted yet, just collapse and move to next step
                     setCurrentStep('PHASE1');
                     scrollToSection(phase1Ref);
                 } else if (currentStep === 'PHASE1') {
                     setPhase1Submitted(true);
+                    setInfoSubmitted(true); // Lock Information step now
                     if (phase2Enabled) {
                         setCurrentStep('PHASE2');
                         scrollToSection(phase2Ref);
@@ -405,7 +406,7 @@ export function OrderPage() {
 
             {/* Step 1: Info */}
             <div ref={infoRef} className="mb-6 transition-all duration-500 ease-in-out">
-                {currentStep !== 'INFO' && infoSubmitted ? (
+                {currentStep !== 'INFO' ? (
                     // Collapsed Summary View
                     <div className="card-base overflow-hidden">
                         <div className="p-6 flex flex-col md:flex-row justify-between items-center">
@@ -440,9 +441,9 @@ export function OrderPage() {
                             <div className="border-t border-neutral-200 bg-neutral-50">
                                 <UserInfoForm
                                     userInfo={userInfo}
-                                    validationErrors={{} as any}
-                                    onChange={() => { }}
-                                    readOnly
+                                    validationErrors={validationErrors}
+                                    onChange={handleUserInfoChange}
+                                    readOnly={infoSubmitted}
                                 />
                             </div>
                         )}
