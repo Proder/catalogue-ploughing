@@ -57,7 +57,7 @@ export function ProductCard({ product, quantity, onQuantityChange }: ProductCard
 
             {/* Product Image - More compact for mobile */}
             <div className="relative w-full bg-neutral-100 aspect-[3/2] sm:aspect-[4/3] overflow-hidden">
-                <div className="absolute top-2 right-2 z-10 px-1.5 sm:px-2.5 py-1 rounded-md sm:rounded-lg bg-primary-500 text-white font-bold text-[10px] sm:text-xs shadow-sm">
+                <div className="absolute top-2 left-2 z-10 px-1.5 sm:px-2.5 py-1 rounded-md sm:rounded-lg bg-primary-500 text-white font-bold text-[10px] sm:text-xs shadow-sm">
                     €{product.pricing2025.toFixed(2)}
                 </div>
                 {product.imageUrl && !imageError ? (
