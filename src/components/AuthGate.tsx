@@ -27,7 +27,7 @@ export function AuthGate({ children }: AuthGateProps) {
         }
     }, [resendCooldown]);
 
-    // Show loading state...
+    // Show loading state....
     if (isLoading) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-neutral-50 to-neutral-100">
