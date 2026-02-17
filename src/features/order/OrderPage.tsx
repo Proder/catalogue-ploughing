@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
+import { useAuth } from '../../context/AuthContext';
 import { HeroSection } from '../../components/HeroSection';
 import { UserInfoForm, validateUserInfo } from '../../components/UserInfoForm';
 import { Phase1Form, validatePhase1Data } from '../../components/Phase1Form';
@@ -33,6 +34,9 @@ const INITIAL_PHASE1_DATA: Phase1Data = {
 type Step = 'INFO' | 'PHASE1' | 'PHASE2';
 
 export function OrderPage() {
+    // Auth state
+    const { email: authenticatedEmail } = useAuth();
+
     // Edit mode state
     const [editMode, setEditMode] = useState(false);
     const [editOrderId, setEditOrderId] = useState<string | null>(null);
@@ -158,7 +162,7 @@ export function OrderPage() {
             setEditToken(editTokenParam);
             setIsLoadingCatalogue(true);
 
-            loadOrderByToken(editTokenParam)
+            loadOrderByToken(editTokenParam, authenticatedEmail || undefined)
                 .then(async (response) => {
                     if (response.success && response.order) {
                         const order = response.order as OrderPayload & { orderId?: string; editToken?: string; phase1Data?: Phase1Data; settings?: any };
@@ -221,7 +225,7 @@ export function OrderPage() {
                             }
                         }
                     } else {
-                        setCatalogueError('Failed to load order for editing. Link may be invalid or expired.');
+                        setCatalogueError(response.message || 'Failed to load order for editing. Link may be invalid or expired.');
                     }
                 })
                 .catch(error => {
@@ -232,11 +236,12 @@ export function OrderPage() {
                     setIsLoadingCatalogue(false);
                 });
         }
-    }, []);
+    }, [authenticatedEmail]);
 
     // Update handlers
     const handleUserInfoChange = (field: keyof UserInfo, value: any) => {
-        if (infoSubmitted) return; // Prevent edits if submitted
+        // Allow toggling sameRequirements even after info is submitted (on Phase 1 step)
+        if (infoSubmitted && field !== 'sameRequirements') return;
         setUserInfo((prev) => ({ ...prev, [field]: value }));
         setValidationErrors(prev => ({ ...prev, [field]: undefined }));
     };
@@ -286,6 +291,8 @@ export function OrderPage() {
             return Object.keys(errors).length === 0;
         }
         if (currentStep === 'PHASE1') {
+            // Skip Phase 1 validation if user chose same requirements
+            if (userInfo.sameRequirements === true) return true;
             const errors = validatePhase1Data(phase1Data);
             setValidationErrors(errors);
             return Object.keys(errors).length === 0;
@@ -300,7 +307,7 @@ export function OrderPage() {
         setIsSubmitting(true);
         try {
             // Check if user selected "same requirements as last year"
-            const isSameRequirements = currentStep === 'INFO' && userInfo.sameRequirements === true;
+            const isSameRequirements = (currentStep === 'INFO' || currentStep === 'PHASE1') && userInfo.sameRequirements === true;
 
             // Prepare payload
             const payload: OrderPayload = {
@@ -515,22 +522,56 @@ export function OrderPage() {
                     ) : (
                         // Full Form View
                         <div className="animate-slide-up">
-                            <Phase1Form
-                                data={phase1Data}
-                                validationErrors={validationErrors}
-                                onChange={handlePhase1Change}
-                            />
-
-                            {!phase1Submitted && (
-                                <div className="text-center mb-10">
+                            {/* When Yes: just show submit button, no Phase 1 form */}
+                            {!phase1Submitted && userInfo.sameRequirements === true && (
+                                <div className="card-elevated p-8 text-center bg-green-50 border-green-200 rounded-xl">
+                                    <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-green-100 flex items-center justify-center">
+                                        <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                        </svg>
+                                    </div>
+                                    <h3 className="text-xl font-bold text-green-800 mb-2">Same as Last Year</h3>
+                                    <p className="text-green-700 mb-6">
+                                        No need to fill in Phase 1 details — we'll use your previous requirements.
+                                    </p>
                                     <button
                                         onClick={handleStepSubmit}
                                         disabled={isSubmitting}
-                                        className="btn-primary w-full md:w-auto px-12 py-3 text-lg"
+                                        className="btn-primary px-12 py-3 text-lg"
                                     >
-                                        {isSubmitting ? 'Saving...' : 'Submit Requirements'}
+                                        {isSubmitting ? 'Submitting...' : 'Submit'}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => handleUserInfoChange('sameRequirements', false)}
+                                        className="block mx-auto mt-3 text-sm text-neutral-500 hover:text-neutral-700 underline"
+                                    >
+                                        No, I have new requirements
                                     </button>
                                 </div>
+                            )}
+
+                            {/* When No: show Phase 1 form normally */}
+                            {userInfo.sameRequirements !== true && (
+                                <>
+                                    <Phase1Form
+                                        data={phase1Data}
+                                        validationErrors={validationErrors}
+                                        onChange={handlePhase1Change}
+                                    />
+
+                                    {!phase1Submitted && (
+                                        <div className="text-center mb-10">
+                                            <button
+                                                onClick={handleStepSubmit}
+                                                disabled={isSubmitting}
+                                                className="btn-primary w-full md:w-auto px-12 py-3 text-lg"
+                                            >
+                                                {isSubmitting ? 'Saving...' : 'Submit Requirements'}
+                                            </button>
+                                        </div>
+                                    )}
+                                </>
                             )}
 
                             {phase1Submitted && !phase2Enabled && (

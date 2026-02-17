@@ -15,7 +15,7 @@ const DEPARTMENTS = [
 ];
 
 const HUBS = [
-    'Main Hall', 'Outdoor Arena', 'Food Court', 'Tech Zone', 'Agri-Hub'
+    'Hub 1', 'Hub 2', 'Hub 3', 'Hub 4', 'Hub 5', 'Hub 6',
 ];
 
 export function UserInfoForm({ userInfo, validationErrors, onChange, readOnly = false }: UserInfoFormProps) {

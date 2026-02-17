@@ -228,7 +228,7 @@ export async function loadOrder(orderId: string): Promise<LoadOrderResponse> {
 /**
  * Load an existing order by edit token
  */
-export async function loadOrderByToken(token: string): Promise<LoadOrderResponse> {
+export async function loadOrderByToken(token: string, email?: string): Promise<LoadOrderResponse> {
     try {
         if (!API_BASE_URL) {
             throw new Error('API_BASE_URL not configured');
@@ -236,8 +236,16 @@ export async function loadOrderByToken(token: string): Promise<LoadOrderResponse
 
         console.log('Loading order by token');
 
+        const params = new URLSearchParams({
+            action: 'getOrderByToken',
+            token: token,
+        });
+        if (email) {
+            params.set('email', email);
+        }
+
         const response = await fetch(
-            `${API_BASE_URL}?action=getOrderByToken&token=${encodeURIComponent(token)}`
+            `${API_BASE_URL}?${params}`
         );
 
         if (!response.ok) {
