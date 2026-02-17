@@ -57,6 +57,9 @@ export function ProductCard({ product, quantity, onQuantityChange }: ProductCard
 
             {/* Product Image - More compact for mobile */}
             <div className="relative w-full bg-neutral-100 aspect-[3/2] sm:aspect-[4/3] overflow-hidden">
+                <div className="absolute top-2 left-2 z-10 px-1.5 sm:px-2.5 py-1 rounded-md sm:rounded-lg bg-primary-500 text-white font-bold text-[10px] sm:text-xs shadow-sm">
+                    €{product.pricing2025.toFixed(2)}
+                </div>
                 {product.imageUrl && !imageError ? (
                     <>
                         {imageLoading && (
@@ -86,13 +89,10 @@ export function ProductCard({ product, quantity, onQuantityChange }: ProductCard
             {/* Product Info - Compact spacing for mobile */}
             <div className="p-2.5 sm:p-4 md:p-6 flex-1 flex flex-col">
                 <div className="mb-2 sm:mb-4">
-                    <div className="flex items-start justify-between gap-1.5 sm:gap-3 mb-1 sm:mb-3">
-                        <h3 className="text-xs sm:text-sm md:text-base font-bold text-neutral-900 leading-tight flex-1 line-clamp-2">
+                    <div className="mb-1 sm:mb-3">
+                        <h3 className="text-xs sm:text-sm md:text-base font-bold text-neutral-900 leading-tight">
                             {product.name}
                         </h3>
-                        <div className="flex-shrink-0 px-1.5 sm:px-2.5 py-1 rounded-md sm:rounded-lg bg-primary-500 text-white font-bold text-[10px] sm:text-xs shadow-sm">
-                            €{product.pricing2025.toFixed(2)}
-                        </div>
                     </div>
 
                     <p className="text-[10px] sm:text-xs text-neutral-600 leading-relaxed line-clamp-2 sm:block">

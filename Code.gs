@@ -4,15 +4,37 @@
  */
 
 // ========================================
-// CONFIGURATION - UPDATE THIS!
+// CONFIGURATION
 // ========================================
-const SPREADSHEET_ID = 'YOUR_SPREADSHEET_ID_HERE';  // Replace with your actual Spreadsheet ID
-const ORDERS_SHEET = 'Orders';
-const CATEGORIES_SHEET = 'Categories';
-const PRODUCTS_SHEET = 'Products';
-const ALLOWED_USERS_SHEET = 'AllowedUsers';  // For authentication
-const SETTINGS_SHEET = 'Settings'; // New Settings sheet
+const SPREADSHEET_ID = 'YOUR_SPREADSHEET_ID_HERE';
 const FRONTEND_URL = 'http://localhost:5173';  // Update with your deployed frontend URL
+
+// Sheet GIDs (use GID instead of name so renaming sheets won't break the code)
+const ORDERS_SHEET_GID = 0;
+const CATEGORIES_SHEET_GID = 51683394;
+const PRODUCTS_SHEET_GID = 1740559680;
+const ALLOWED_USERS_SHEET_GID = 1767086135;
+const SETTINGS_SHEET_GID = 1924934682;
+const PHASE_1_SHEET_GID = 488188901;
+const PHASE_2_SHEET_GID = 93083679;
+const PHASE_1_UNIQUE_SHEET_GID = 143296475;
+const PHASE_2_UNIQUE_SHEET_GID = 1129021901;
+const ORDER_DETAILS_SHEET_GID = 657703585;
+const SUPPLIER_SUMMARY_SHEET_GID = 416500461;
+
+/**
+ * Get a sheet by its GID (sheet ID) instead of name.
+ * This is resilient to sheet renames.
+ */
+function getSheetByGid(ss, gid) {
+  const sheets = ss.getSheets();
+  for (let i = 0; i < sheets.length; i++) {
+    if (sheets[i].getSheetId() === gid) {
+      return sheets[i];
+    }
+  }
+  return null;
+}
 
 
 // ========================================
@@ -50,13 +72,19 @@ function doGet(e) {
       case 'getSettings': // New endpoint
          result = getSettings();
          break;
+      case 'regenerateSheets':
+         result = regenerateAllSheets();
+         break;
+      case 'generateOrderDetails':
+         result = generateAllOrderDetails();
+         break;
       
       // Order endpoints
       case 'getOrder':
         result = getOrder(e.parameter.orderId);
         break;
       case 'getOrderByToken':
-        result = getOrderByToken(e.parameter.token);
+        result = getOrderByToken(e.parameter.token, e.parameter.email);
         break;
       
       case 'health':
@@ -95,6 +123,12 @@ function doPost(e) {
         break;
       case 'updateOrder':
         result = updateOrder(data.orderId, data.payload, data.editToken);
+        break;
+      
+      // Admin endpoints
+      case 'activatePhase2':
+        // Optional: Add admin auth check here if needed
+        result = activatePhase2AndNotify();
         break;
       
       default:
@@ -142,7 +176,7 @@ function checkEmailAccess(email) {
   }
   
   const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-  const sheet = ss.getSheetByName(ALLOWED_USERS_SHEET);
+  const sheet = getSheetByGid(ss, ALLOWED_USERS_SHEET_GID);
   
   if (!sheet) {
     // If AllowedUsers sheet doesn't exist, allow all (for backwards compatibility)
@@ -321,12 +355,12 @@ function getCatalogue() {
   const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
   
   // Get categories
-  const catSheet = ss.getSheetByName(CATEGORIES_SHEET);
+  const catSheet = getSheetByGid(ss, CATEGORIES_SHEET_GID);
   const catData = catSheet.getDataRange().getValues();
   const catHeaders = catData.shift(); // Remove header row
   
   // Get products
-  const prodSheet = ss.getSheetByName(PRODUCTS_SHEET);
+  const prodSheet = getSheetByGid(ss, PRODUCTS_SHEET_GID);
   const prodData = prodSheet.getDataRange().getValues();
   const prodHeaders = prodData.shift(); // Remove header row
   
@@ -382,7 +416,7 @@ function getCatalogue() {
  */
 function getCategoriesOnly() {
   const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-  const catSheet = ss.getSheetByName(CATEGORIES_SHEET);
+  const catSheet = getSheetByGid(ss, CATEGORIES_SHEET_GID);
   const catData = catSheet.getDataRange().getValues();
   const catHeaders = catData.shift(); // Remove header row
   
@@ -410,7 +444,7 @@ function getProductsByCategory(categoryId) {
   const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
   
   // Get category info
-  const catSheet = ss.getSheetByName(CATEGORIES_SHEET);
+  const catSheet = getSheetByGid(ss, CATEGORIES_SHEET_GID);
   const catData = catSheet.getDataRange().getValues();
   const catHeaders = catData.shift();
   
@@ -423,7 +457,7 @@ function getProductsByCategory(categoryId) {
   const categoryName = categoryRow[1];
   
   // Get products
-  const prodSheet = ss.getSheetByName(PRODUCTS_SHEET);
+  const prodSheet = getSheetByGid(ss, PRODUCTS_SHEET_GID);
   const prodData = prodSheet.getDataRange().getValues();
   const prodHeaders = prodData.shift();
   
@@ -466,11 +500,12 @@ function getProductsByCategory(categoryId) {
  */
 function getSettings() {
    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-   let sheet = ss.getSheetByName(SETTINGS_SHEET);
+   let sheet = getSheetByGid(ss, SETTINGS_SHEET_GID);
+   if (!sheet) sheet = ss.getSheetByName('Settings');
    
    // Create Settings sheet if it doesn't exist (First run setup)
    if (!sheet) {
-     sheet = ss.insertSheet(SETTINGS_SHEET);
+     sheet = ss.insertSheet('Settings');
      sheet.appendRow(['Key', 'Value']);
      sheet.appendRow(['PHASE_2_ENABLED', 'FALSE']);
    }
@@ -501,7 +536,7 @@ function getSettings() {
  */
 function createOrder(payload) {
   const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-  const sheet = ss.getSheetByName(ORDERS_SHEET);
+  const sheet = getSheetByGid(ss, ORDERS_SHEET_GID);
   
   // Generate order ID and edit token
   const orderId = 'ORD-' + Date.now();
@@ -541,18 +576,29 @@ function createOrder(payload) {
   
   sheet.appendRow(row);
   
-  // Add order to OrderDetails sheet
+  // NOTE: OrderDetails is no longer auto-populated here.
+  // Use the 'generateOrderDetails' action or the spreadsheet button to generate it from Phase2Unique.
+
+  // Update Phase 1 Sheet
   try {
-    addOrderToDetailsSheet(payload, orderId);
-  } catch (detailsError) {
-    Logger.log('Failed to add to OrderDetails sheet: ' + detailsError.toString());
+    if (payload.phase1Data) {
+      payload.editToken = editToken; // Ensure token is in payload
+      savePhase1Data(payload, orderId);
+      updatePhase1UniqueEntry(payload, orderId);
+    }
+  } catch (p1Error) {
+    Logger.log('Failed to update Phase 1 sheet: ' + p1Error.toString());
   }
-  
-  // Update SupplierSummary sheet
+
+  // Update Phase 2 Sheet
   try {
-    updateSupplierSummarySheet();
-  } catch (summaryError) {
-    Logger.log('Failed to update SupplierSummary sheet: ' + summaryError.toString());
+    if (payload.lineItems && payload.lineItems.length > 0) {
+      payload.editToken = editToken; // Ensure token is in payload
+      savePhase2Data(payload, orderId);
+      updatePhase2UniqueEntry(payload, orderId);
+    }
+  } catch (p2Error) {
+    Logger.log('Failed to update Phase 2 sheet: ' + p2Error.toString());
   }
   
   // Send confirmation email ONLY for Phase 1, Phase 2, and Same Requirements submissions
@@ -586,7 +632,7 @@ function getOrder(orderId) {
   }
   
   const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-  const sheet = ss.getSheetByName(ORDERS_SHEET);
+  const sheet = getSheetByGid(ss, ORDERS_SHEET_GID);
   const data = sheet.getDataRange().getValues();
   const headers = data.shift(); // Remove header row
   
@@ -644,18 +690,31 @@ function getOrder(orderId) {
 /**
  * Get an existing order by edit token
  */
-function getOrderByToken(token) {
+function getOrderByToken(token, email) {
   if (!token) {
     return { success: false, order: null, message: 'Edit token is required' };
   }
   
   const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-  const sheet = ss.getSheetByName(ORDERS_SHEET);
+  const sheet = getSheetByGid(ss, ORDERS_SHEET_GID);
   const data = sheet.getDataRange().getValues();
   const headers = data.shift(); // Remove header row
   
   // Find order row by edit token (column J)
   const orderRow = data.find(row => row[9] === token);
+  
+  // Verify email ownership if email is provided
+  if (orderRow && email) {
+    const orderEmail = (orderRow[3] || '').toString().toLowerCase().trim();
+    const requestEmail = (email || '').toString().toLowerCase().trim();
+    if (orderEmail !== requestEmail) {
+      return { 
+        success: false, 
+        order: null, 
+        message: 'Access denied. This order belongs to a different account.' 
+      };
+    }
+  }
   
   if (!orderRow) {
     return { success: false, order: null, message: 'Order not found or invalid edit link' };
@@ -713,7 +772,7 @@ function updateOrder(orderId, payload, editToken) {
   }
   
   const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-  const sheet = ss.getSheetByName(ORDERS_SHEET);
+  const sheet = getSheetByGid(ss, ORDERS_SHEET_GID);
   const data = sheet.getDataRange().getValues();
   
   // Find order row index (1-indexed in Sheets)
@@ -765,18 +824,29 @@ function updateOrder(orderId, payload, editToken) {
     phase1Json
   ]]);
   
-  // Update OrderDetails sheet
+  // NOTE: OrderDetails is no longer auto-populated here.
+  // Use the 'generateOrderDetails' action or the spreadsheet button to generate it from Phase2Unique.
+
+  // Update Phase 1 Sheet
   try {
-    updateOrderInDetailsSheet(payload, orderId);
-  } catch (detailsError) {
-    Logger.log('Failed to update OrderDetails sheet: ' + detailsError.toString());
+    if (payload.phase1Data) {
+      payload.editToken = existingEditToken; // Ensure token is in payload
+      updatePhase1Data(payload, orderId);
+      updatePhase1UniqueEntry(payload, orderId);
+    }
+  } catch (p1Error) {
+    Logger.log('Failed to update Phase 1 sheet: ' + p1Error.toString());
   }
-  
-  // Update SupplierSummary sheet
+
+  // Update Phase 2 Sheet
   try {
-    updateSupplierSummarySheet();
-  } catch (summaryError) {
-    Logger.log('Failed to update SupplierSummary sheet: ' + summaryError.toString());
+    if (payload.lineItems && payload.lineItems.length > 0) {
+      payload.editToken = existingEditToken; // Ensure token is in payload
+      updatePhase2Data(payload, orderId);
+      updatePhase2UniqueEntry(payload, orderId);
+    }
+  } catch (p2Error) {
+    Logger.log('Failed to update Phase 2 sheet: ' + p2Error.toString());
   }
   
   // Send update confirmation email
@@ -1169,7 +1239,8 @@ function sendUpdateConfirmation(payload, orderId, editToken) {
  */
 function getOrCreateOrderDetailsSheet() {
   const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-  let detailsSheet = ss.getSheetByName('OrderDetails');
+  let detailsSheet = getSheetByGid(ss, ORDER_DETAILS_SHEET_GID);
+  if (!detailsSheet) detailsSheet = ss.getSheetByName('OrderDetails');
   
   if (!detailsSheet) {
     detailsSheet = ss.insertSheet('OrderDetails');
@@ -1294,10 +1365,10 @@ function updateOrderInDetailsSheet(orderData, orderId) {
  */
 function regenerateOrderDetailsSheet() {
   const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-  const ordersSheet = ss.getSheetByName(ORDERS_SHEET);
+  const ordersSheet = getSheetByGid(ss, ORDERS_SHEET_GID);
   
   // Delete existing OrderDetails sheet if it exists
-  const existingSheet = ss.getSheetByName('OrderDetails');
+  const existingSheet = getSheetByGid(ss, ORDER_DETAILS_SHEET_GID);
   if (existingSheet) {
     ss.deleteSheet(existingSheet);
   }
@@ -1398,7 +1469,8 @@ function regenerateOrderDetailsSheet() {
  */
 function getOrCreateSupplierSummarySheet() {
   const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-  let summarySheet = ss.getSheetByName('SupplierSummary');
+  let summarySheet = getSheetByGid(ss, SUPPLIER_SUMMARY_SHEET_GID);
+  if (!summarySheet) summarySheet = ss.getSheetByName('SupplierSummary');
   
   if (!summarySheet) {
     summarySheet = ss.insertSheet('SupplierSummary');
@@ -1437,7 +1509,7 @@ function getOrCreateSupplierSummarySheet() {
 function updateSupplierSummarySheet() {
   const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
   const summarySheet = getOrCreateSupplierSummarySheet();
-  const detailsSheet = ss.getSheetByName('OrderDetails');
+  const detailsSheet = getSheetByGid(ss, ORDER_DETAILS_SHEET_GID);
   
   if (!detailsSheet) {
     Logger.log('OrderDetails sheet not found - cannot update supplier summary');
@@ -1545,7 +1617,7 @@ function regenerateSupplierSummarySheet() {
   const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
   
   // Delete existing SupplierSummary sheet if it exists
-  const existingSheet = ss.getSheetByName('SupplierSummary');
+  const existingSheet = getSheetByGid(ss, SUPPLIER_SUMMARY_SHEET_GID);
   if (existingSheet) {
     ss.deleteSheet(existingSheet);
   }
@@ -1555,4 +1627,761 @@ function regenerateSupplierSummarySheet() {
   
   Logger.log('SupplierSummary sheet regenerated successfully');
   return { success: true, message: 'SupplierSummary sheet regenerated' };
+}
+// ========================================
+// PHASE 1 SHEET OPERATIONS
+// ========================================
+
+/**
+ * Create or get the Phase 1 Results sheet
+ */
+function getOrCreatePhase1Sheet() {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  let sheet = getSheetByGid(ss, PHASE_1_SHEET_GID);
+  if (!sheet) sheet = ss.getSheetByName('Phase1Results');
+  
+  if (!sheet) {
+    sheet = ss.insertSheet('Phase1Results');
+    
+    // Set up headers
+    const headers = [
+      'Order ID',
+      'Date',
+      'Name',
+      'Email',
+      'Company',
+      'Phone',
+      'Department',
+      'Hub',
+      'Mobile',
+      'Backup Name',
+      'Backup Email',
+      'Footprint',
+      'Shared Storage',
+      'Storage Size',
+      'Edit Token' // New Column
+    ];
+    
+    const headerRange = sheet.getRange(1, 1, 1, headers.length);
+    headerRange.setValues([headers]);
+    headerRange.setFontWeight('bold');
+    headerRange.setBackground('#805ad5'); // Purple for Phase 1
+    headerRange.setFontColor('#ffffff');
+    
+    sheet.setFrozenRows(1);
+  }
+  
+  return sheet;
+}
+
+/**
+ * Save data to Phase 1 sheet
+ */
+function savePhase1Data(payload, orderId) {
+  const sheet = getOrCreatePhase1Sheet();
+  const p1 = payload.phase1Data || {};
+  const u = payload.userInfo;
+  
+  const row = [
+    orderId,
+    payload.timestamp || new Date().toISOString(),
+    u.name,
+    u.email,
+    u.company || '',
+    u.phone || '',
+    u.department || '',
+    u.hub || '',
+    u.mobile || '',
+    u.backupName || '',
+    u.backupEmail || '',
+    p1.footprint || '',
+    p1.sharedStorage ? 'Yes' : 'No',
+    p1.storageSize || '',
+    payload.editToken || '' // Save Edit Token
+  ];
+  
+  sheet.appendRow(row);
+}
+
+/**
+ * Update data in Phase 1 sheet
+ */
+function updatePhase1Data(payload, orderId) {
+  const sheet = getOrCreatePhase1Sheet();
+  const data = sheet.getDataRange().getValues();
+  
+  let rowIndex = -1;
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0] === orderId) {
+      rowIndex = i + 1;
+      break;
+    }
+  }
+  
+  // If found, update. If not found, append.
+  if (rowIndex > -1) {
+    const p1 = payload.phase1Data || {};
+    const u = payload.userInfo;
+    
+    // Explicitly update all columns to ensure consistency
+    const row = [
+      orderId,
+      payload.timestamp || new Date().toISOString(),
+      u.name,
+      u.email,
+      u.company || '',
+      u.phone || '',
+      u.department || '',
+      u.hub || '',
+      u.mobile || '',
+      u.backupName || '',
+      u.backupEmail || '',
+      p1.footprint || '',
+      p1.sharedStorage ? 'Yes' : 'No',
+      p1.storageSize || '',
+      payload.editToken || '' // Save Edit Token
+    ];
+    
+    sheet.getRange(rowIndex, 1, 1, row.length).setValues([row]);
+  } else {
+    savePhase1Data(payload, orderId);
+  }
+}
+
+
+// ========================================
+// PHASE 2 SHEET OPERATIONS
+// ========================================
+
+/**
+ * Create or get the Phase 2 Results sheet
+ */
+function getOrCreatePhase2Sheet() {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  let sheet = getSheetByGid(ss, PHASE_2_SHEET_GID);
+  if (!sheet) sheet = ss.getSheetByName('Phase2Results');
+  
+  if (!sheet) {
+    sheet = ss.insertSheet('Phase2Results');
+    
+    // Set up headers
+    const headers = [
+      'Order ID',
+      'Date',
+      'Name',
+      'Email', 
+      'Department',
+      'Hub',
+      'Mobile',
+      'Items Summary',
+      'Total Value'
+    ];
+    
+    const headerRange = sheet.getRange(1, 1, 1, headers.length);
+    headerRange.setValues([headers]);
+    headerRange.setFontWeight('bold');
+    headerRange.setBackground('#38a169'); // Green for Phase 2
+    headerRange.setFontColor('#ffffff');
+    
+    sheet.setFrozenRows(1);
+  }
+  
+  return sheet;
+}
+
+/**
+ * Save data to Phase 2 sheet
+ */
+function savePhase2Data(payload, orderId) {
+  const sheet = getOrCreatePhase2Sheet();
+  const u = payload.userInfo;
+  const lineItems = payload.lineItems || [];
+  
+  // Guard: Do not save if no items (prevents Phase 1 submissions from creating empty Phase 2 rows)
+  if (lineItems.length === 0) return;
+  
+  // Create a summary string of items
+  // Format: JSON Array of objects
+  const itemsSummary = JSON.stringify(lineItems.map(item => ({
+    productId: item.productId,
+    productName: item.productName,
+    size: item.size,
+    quantity: item.quantity,
+    unitPrice: item.unitPrice,
+    lineTotal: item.lineTotal
+  })));
+  
+  // Calculate total if not provided
+  const totalValue = payload.totals && payload.totals.total 
+    ? payload.totals.total 
+    : lineItems.reduce((sum, item) => sum + (item.lineTotal || (item.unitPrice * item.quantity)), 0);
+
+  const row = [
+    orderId,
+    payload.timestamp || new Date().toISOString(),
+    u.name,
+    u.email,
+    u.department || '',
+    u.hub || '',
+    u.mobile || '',
+    itemsSummary,
+    totalValue
+  ];
+
+  sheet.appendRow(row);
+}
+
+/**
+ * Update data in Phase 2 sheet
+ */
+function updatePhase2Data(payload, orderId) {
+  const sheet = getOrCreatePhase2Sheet();
+  const data = sheet.getDataRange().getValues();
+  
+  let rowIndex = -1;
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0] === orderId) {
+      rowIndex = i + 1;
+      break;
+    }
+  }
+  
+  // If found, update. If not found, append.
+  if (rowIndex > -1) {
+    const u = payload.userInfo;
+    const lineItems = payload.lineItems || [];
+    
+    const itemsSummary = JSON.stringify(lineItems.map(item => ({
+      productId: item.productId,
+      productName: item.productName,
+      size: item.size,
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+      lineTotal: item.lineTotal
+    })));
+    
+    const totalValue = payload.totals && payload.totals.total 
+      ? payload.totals.total 
+      : lineItems.reduce((sum, item) => sum + (item.lineTotal || (item.unitPrice * item.quantity)), 0);
+
+    const row = [
+      orderId,
+      payload.timestamp || new Date().toISOString(),
+      u.name,
+      u.email,
+      u.department || '',
+      u.hub || '',
+      u.mobile || '',
+      itemsSummary,
+      totalValue
+    ];
+    
+    sheet.getRange(rowIndex, 1, 1, row.length).setValues([row]);
+  } else {
+    savePhase2Data(payload, orderId);
+  }
+}
+
+/**
+ * Regenerate both new sheets from existing Orders (Backfill)
+ * Can be called via API: ?action=regenerateSheets
+ */
+function regenerateAllSheets() {
+   const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+   const ordersSheet = getSheetByGid(ss, ORDERS_SHEET_GID);
+   const data = ordersSheet.getDataRange().getValues();
+   data.shift(); // Remove header
+
+   // Clear existing destination sheets first
+   let s1 = getOrCreatePhase1Sheet();
+   if (s1.getLastRow() > 1) s1.getRange(2, 1, s1.getLastRow()-1, s1.getLastColumn()).clear();
+   
+   let s2 = getOrCreatePhase2Sheet();
+   if (s2.getLastRow() > 1) s2.getRange(2, 1, s2.getLastRow()-1, s2.getLastColumn()).clear();
+
+   data.forEach(row => {
+       if(!row[0]) return;
+       const orderId = row[0];
+       
+       let phase1Data = {};
+       try { phase1Data = JSON.parse(row[16] || '{}'); } catch(e){}
+
+       let lineItems = [];
+       try { lineItems = JSON.parse(row[8] || '[]'); } catch(e){}
+
+       const payload = {
+           timestamp: row[1],
+           userInfo: {
+               name: row[2],
+               email: row[3],
+               company: row[4],
+               phone: row[5],
+               department: row[10],
+               mobile: row[11],
+               backupName: row[12],
+               backupEmail: row[13],
+               hub: row[14]
+           },
+           phase1Data: phase1Data,
+           lineItems: lineItems,
+           editToken: row[9] // Pass Edit Token (Column J)
+       };
+
+       savePhase1Data(payload, orderId);
+       savePhase2Data(payload, orderId);
+   });
+
+   return { success: true, message: 'Regenerated Phase 1 and Phase 2 sheets from Orders.' };
+}
+
+
+// ========================================
+// PHASE 2 ACTIVATION & EMAIL BLAST
+// ========================================
+
+/**
+ * Activate Phase 2 and notify all Phase 1 users
+ */
+function activatePhase2AndNotify() {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  
+  // 1. Enable Phase 2 in Settings
+  let settingsSheet = getSheetByGid(ss, SETTINGS_SHEET_GID);
+  if (!settingsSheet) settingsSheet = ss.getSheetByName('Settings');
+  if (!settingsSheet) {
+    getSettings(); // Ensures sheet is created
+    settingsSheet = getSheetByGid(ss, SETTINGS_SHEET_GID);
+    if (!settingsSheet) settingsSheet = ss.getSheetByName('Settings');
+  }
+  
+  const data = settingsSheet.getDataRange().getValues();
+  let found = false;
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0] === 'PHASE_2_ENABLED') {
+      settingsSheet.getRange(i + 1, 2).setValue('TRUE');
+      found = true;
+      break;
+    }
+  }
+  if (!found) {
+    settingsSheet.appendRow(['PHASE_2_ENABLED', 'TRUE']);
+  }
+  
+  // 2. Fetch users from Phase 1 Unique (already deduplicated by email)
+  const p1UniqueSheet = getOrCreatePhase1UniqueSheet();
+  const p1Data = p1UniqueSheet.getDataRange().getValues();
+  p1Data.shift(); // Remove header
+  
+  // 3. Collect users directly (Phase1Unique already has one entry per email)
+  const usersList = p1Data
+    .filter(row => row[0] && row[3] && row[14]) // Must have orderId, email, and token
+    .map(row => ({
+      name: row[2],
+      email: row[3],
+      token: row[14],
+    }));
+  
+  // 4. Send Email Blast
+  let sentCount = 0;
+  let failedCount = 0;
+  
+  // Use standard for loop for maximum reliability
+  for (let i = 0; i < usersList.length; i++) {
+    const user = usersList[i];
+    try {
+      if (!user || !user.token) {
+        Logger.log('Skipping invalid user entry: ' + JSON.stringify(user));
+        continue;
+      }
+      
+      Logger.log('Processing user: ' + user.email + ' with token: ' + user.token);
+      
+      try {
+        const email = user.email;
+        const name = user.name;
+        const token = user.token;
+        const editUrl = `${FRONTEND_URL}?edit=${token}`;
+        
+        const htmlBody = `
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <style>
+              body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+              .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+              .header { background: linear-gradient(135deg, #38a169 0%, #2f855a 100%); color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }
+              .content { background: white; padding: 30px; border: 1px solid #e2e8f0; }
+              .button { display: inline-block; padding: 14px 28px; background: #38a169; color: white; text-decoration: none; border-radius: 6px; font-weight: bold; margin: 25px 0; font-size: 16px; }
+              .footer { text-align: center; color: #718096; font-size: 0.9em; margin-top: 30px; }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <div class="header">
+                <h1 style="margin: 0;">Product Selection Open</h1>
+                <p style="margin: 10px 0 0 0;">Phase 2 is now active</p>
+              </div>
+              <div class="content">
+                <p>Hi ${name},</p>
+                <p>Great news! The product catalogue for the Ploughing Championships is now open for selection (Phase 2).</p>
+                <p>You can now proceed to select the products and quantities you require for your stand.</p>
+                
+                <div style="text-align: center;">
+                  <a href="${editUrl}" class="button" style="color: #ffffff !important;">Select Products Now</a>
+                </div>
+                
+                <p>Please complete your selection as soon as possible to ensure availability.</p>
+                <p style="font-size: 0.9em; style="color: #ffffff !important;; margin-top: 20px;">
+                  Detail: Your existing requirements (Phase 1) have been saved.
+                </p>
+              </div>
+              <div class="footer">
+                <p>&copy; ${new Date().getFullYear()} Catalogue Ploughing</p>
+              </div>
+            </div>
+          </body>
+          </html>
+        `;
+        
+        MailApp.sendEmail({
+          to: email,
+          subject: 'Action Required: Product Selection Open - Catalogue Ploughing',
+          htmlBody: htmlBody
+        });
+        
+        sentCount++;
+        // Sleep slightly to avoid hitting rate limits too hard
+        Utilities.sleep(500); 
+      } catch (innerError) {
+         Logger.log(`Failed to send email inside loop: ${innerError.toString()}`);
+         throw innerError;
+      }
+
+    } catch (e) {
+      // Safe logging that won't throw if user is undefined
+      const email = user ? user.email : 'unknown';
+      Logger.log(`Failed to send activation email to ${email}: ${e.toString()}`);
+      failedCount++;
+    }
+  }
+  
+  return { 
+    success: true, 
+    message: `Phase 2 Activated. Emails sent: ${sentCount}, Failed: ${failedCount}` 
+  };
+}
+
+
+// ========================================
+// PHASE 1 UNIQUE SHEET OPERATIONS
+// ========================================
+
+/**
+ * Create or get the Phase 1 Unique sheet
+ * Contains only the latest entry per email
+ */
+function getOrCreatePhase1UniqueSheet() {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  let sheet = getSheetByGid(ss, PHASE_1_UNIQUE_SHEET_GID);
+  if (!sheet) sheet = ss.getSheetByName('Phase1Unique');
+
+  if (!sheet) {
+    sheet = ss.insertSheet('Phase1Unique');
+
+    const headers = [
+      'Order ID',
+      'Date',
+      'Name',
+      'Email',
+      'Company',
+      'Phone',
+      'Department',
+      'Hub',
+      'Mobile',
+      'Backup Name',
+      'Backup Email',
+      'Footprint',
+      'Shared Storage',
+      'Storage Size',
+      'Edit Token',
+    ];
+
+    const headerRange = sheet.getRange(1, 1, 1, headers.length);
+    headerRange.setValues([headers]);
+    headerRange.setFontWeight('bold');
+    headerRange.setBackground('#6b21a8'); // Darker purple for Phase 1 Unique
+    headerRange.setFontColor('#ffffff');
+
+    sheet.setFrozenRows(1);
+  }
+
+  return sheet;
+}
+
+/**
+ * Update or insert Phase 1 Unique entry by email
+ * Keeps only the most recent entry per email
+ */
+function updatePhase1UniqueEntry(payload, orderId) {
+  const sheet = getOrCreatePhase1UniqueSheet();
+  const p1 = payload.phase1Data || {};
+  const u = payload.userInfo;
+  const email = (u.email || '').toString().toLowerCase().trim();
+
+  if (!email) return;
+
+  const row = [
+    orderId,
+    payload.timestamp || new Date().toISOString(),
+    u.name,
+    u.email,
+    u.company || '',
+    u.phone || '',
+    u.department || '',
+    u.hub || '',
+    u.mobile || '',
+    u.backupName || '',
+    u.backupEmail || '',
+    p1.footprint || '',
+    p1.sharedStorage ? 'Yes' : 'No',
+    p1.storageSize || '',
+    payload.editToken || '',
+  ];
+
+  // Find existing row by email (column D = index 3)
+  const data = sheet.getDataRange().getValues();
+  let rowIndex = -1;
+  for (let i = 1; i < data.length; i++) {
+    const existingEmail = (data[i][3] || '').toString().toLowerCase().trim();
+    if (existingEmail === email) {
+      rowIndex = i + 1; // 1-indexed for sheet
+      break;
+    }
+  }
+
+  if (rowIndex > -1) {
+    // Replace existing entry
+    sheet.getRange(rowIndex, 1, 1, row.length).setValues([row]);
+  } else {
+    // Append new entry
+    sheet.appendRow(row);
+  }
+}
+
+
+// ========================================
+// PHASE 2 UNIQUE SHEET OPERATIONS
+// ========================================
+
+/**
+ * Create or get the Phase 2 Unique sheet
+ * Contains only the latest entry per email
+ */
+function getOrCreatePhase2UniqueSheet() {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  let sheet = getSheetByGid(ss, PHASE_2_UNIQUE_SHEET_GID);
+  if (!sheet) sheet = ss.getSheetByName('Phase2Unique');
+
+  if (!sheet) {
+    sheet = ss.insertSheet('Phase2Unique');
+
+    const headers = [
+      'Order ID',
+      'Date',
+      'Name',
+      'Email',
+      'Department',
+      'Hub',
+      'Mobile',
+      'Items Summary',
+      'Total Value',
+    ];
+
+    const headerRange = sheet.getRange(1, 1, 1, headers.length);
+    headerRange.setValues([headers]);
+    headerRange.setFontWeight('bold');
+    headerRange.setBackground('#166534'); // Darker green for Phase 2 Unique
+    headerRange.setFontColor('#ffffff');
+
+    sheet.setFrozenRows(1);
+  }
+
+  return sheet;
+}
+
+/**
+ * Update or insert Phase 2 Unique entry by email
+ * Keeps only the most recent entry per email
+ */
+function updatePhase2UniqueEntry(payload, orderId) {
+  const sheet = getOrCreatePhase2UniqueSheet();
+  const u = payload.userInfo;
+  const lineItems = payload.lineItems || [];
+  const email = (u.email || '').toString().toLowerCase().trim();
+
+  // Guard: Do not save if no items or no email
+  if (lineItems.length === 0 || !email) return;
+
+  const itemsSummary = JSON.stringify(lineItems.map(item => ({
+    productId: item.productId,
+    productName: item.productName,
+    size: item.size,
+    quantity: item.quantity,
+    unitPrice: item.unitPrice,
+    lineTotal: item.lineTotal,
+    categoryName: item.categoryName || '',
+    supplier: item.supplier || '',
+  })));
+
+  const totalValue = payload.totals && payload.totals.total
+    ? payload.totals.total
+    : lineItems.reduce((sum, item) => sum + (item.lineTotal || (item.unitPrice * item.quantity)), 0);
+
+  const row = [
+    orderId,
+    payload.timestamp || new Date().toISOString(),
+    u.name,
+    u.email,
+    u.department || '',
+    u.hub || '',
+    u.mobile || '',
+    itemsSummary,
+    totalValue,
+  ];
+
+  // Find existing row by email (column D = index 3)
+  const data = sheet.getDataRange().getValues();
+  let rowIndex = -1;
+  for (let i = 1; i < data.length; i++) {
+    const existingEmail = (data[i][3] || '').toString().toLowerCase().trim();
+    if (existingEmail === email) {
+      rowIndex = i + 1;
+      break;
+    }
+  }
+
+  if (rowIndex > -1) {
+    // Replace existing entry
+    sheet.getRange(rowIndex, 1, 1, row.length).setValues([row]);
+  } else {
+    // Append new entry
+    sheet.appendRow(row);
+  }
+}
+
+
+// ========================================
+// GENERATE ORDER DETAILS FROM PHASE 2 UNIQUE
+// ========================================
+
+/**
+ * Generate OrderDetails sheet from Phase2Unique data
+ * Reads unique entries from Phase2Unique, expands line items into individual rows
+ * Callable from a button in the spreadsheet or via ?action=generateOrderDetails
+ */
+function generateAllOrderDetails() {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+
+  // Delete existing OrderDetails sheet
+  const existingSheet = getSheetByGid(ss, ORDER_DETAILS_SHEET_GID);
+  if (existingSheet) {
+    ss.deleteSheet(existingSheet);
+  }
+
+  // Recreate OrderDetails sheet with headers
+  const detailsSheet = getOrCreateOrderDetailsSheet();
+
+  // Read from Phase2Unique
+  const p2UniqueSheet = getSheetByGid(ss, PHASE_2_UNIQUE_SHEET_GID);
+  if (!p2UniqueSheet) {
+    Logger.log('Phase2Unique sheet not found');
+    return { success: false, message: 'Phase2Unique sheet not found. Submit Phase 2 orders first.' };
+  }
+
+  const p2Data = p2UniqueSheet.getDataRange().getValues();
+  p2Data.shift(); // Remove header
+
+  // Build all OrderDetails rows from Phase2Unique
+  const allRows = [];
+
+  p2Data.forEach(row => {
+    if (!row[0]) return; // Skip empty rows
+
+    const orderId = row[0];
+    const orderDate = row[1];
+    const name = row[2];
+    const email = row[3];
+    const department = row[4];
+    const hub = row[5];
+
+    // Parse Items Summary JSON (column H = index 7)
+    let lineItems = [];
+    try {
+      lineItems = JSON.parse(row[7] || '[]');
+    } catch (e) {
+      Logger.log('Failed to parse items for order ' + orderId + ': ' + e.toString());
+      return;
+    }
+
+    // Expand each line item into an OrderDetails row
+    lineItems.forEach(item => {
+      allRows.push([
+        orderId,
+        orderDate,
+        name,
+        email,
+        department || '',
+        hub || '',
+        item.categoryName || '',
+        item.productId || '',
+        item.productName || '',
+        item.size || '',
+        item.supplier || '',
+        item.unitPrice || 0,
+        item.quantity || 0,
+      ]);
+    });
+
+    // Add spacing row between orders
+    allRows.push(new Array(13).fill(''));
+  });
+
+  // Write all rows at once
+  if (allRows.length > 0) {
+    detailsSheet.getRange(2, 1, allRows.length, 13).setValues(allRows);
+
+    // Apply background to product rows (skip spacing rows)
+    let rowIndex = 2;
+    p2Data.forEach(row => {
+      if (!row[0]) return;
+
+      let lineItems = [];
+      try { lineItems = JSON.parse(row[7] || '[]'); } catch (e) { return; }
+
+      if (lineItems.length > 0) {
+        detailsSheet.getRange(rowIndex, 1, lineItems.length, 13).setBackground('#f7fafc');
+        rowIndex += lineItems.length + 1; // Products + spacing row
+      }
+    });
+
+    // Auto-resize columns
+    for (let i = 1; i <= 13; i++) {
+      detailsSheet.autoResizeColumn(i);
+    }
+  }
+
+  // Also update SupplierSummary from the new OrderDetails
+  try {
+    updateSupplierSummarySheet();
+  } catch (summaryError) {
+    Logger.log('Failed to update SupplierSummary: ' + summaryError.toString());
+  }
+
+  const orderCount = p2Data.filter(row => row[0]).length;
+  Logger.log('OrderDetails regenerated from Phase2Unique: ' + orderCount + ' unique orders');
+
+  return {
+    success: true,
+    message: 'OrderDetails generated from Phase2Unique. ' + orderCount + ' unique orders processed.',
+  };
 }

@@ -49,21 +49,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
         }
 
-        // Check for edit token in URL - skip auth if present
-        const urlParams = new URLSearchParams(window.location.search);
-        const editToken = urlParams.get('edit');
-
-        if (editToken) {
-            // Edit mode - authenticate via edit token
-            setAuthState({
-                isAuthenticated: true,
-                email: null, // Will be populated from order
-                sessionToken: null,
-                isLoading: false,
-            });
-            return;
-        }
-
         setAuthState(prev => ({ ...prev, isLoading: false }));
     }, []);
 
