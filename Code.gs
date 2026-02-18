@@ -376,7 +376,7 @@ function getCatalogue() {
       // Find products that match this category name (column B)
       const products = prodData
         .filter(prodRow => {
-          const productCategory = prodRow[1] ? prodRow[1].trim() : '';
+          const productCategory = prodRow[1] ? String(prodRow[1]).trim() : '';
           // Handle Active column - could be boolean TRUE or string "TRUE"
           const activeValue = prodRow[9];
           const isActive = activeValue === true || activeValue === 'TRUE' || activeValue === 'true';
@@ -448,13 +448,28 @@ function getProductsByCategory(categoryId) {
   const catData = catSheet.getDataRange().getValues();
   const catHeaders = catData.shift();
   
-  // Find the category
-  const categoryRow = catData.find(row => row[0] === categoryId);
+  // Normalize categoryId to string for comparison (URL params are always strings,
+  // but sheet values may be numbers)
+  const normalizedCategoryId = String(categoryId).trim();
+  
+  // Find the category (compare as strings)
+  const categoryRow = catData.find(row => String(row[0]).trim() === normalizedCategoryId);
   if (!categoryRow) {
-    return { success: false, products: [], message: 'Category not found' };
+    // Return debug info to help diagnose
+    const availableIds = catData.map(row => ({ id: row[0], type: typeof row[0], name: row[1] }));
+    return { 
+      success: false, 
+      products: [], 
+      message: 'Category not found',
+      debug: {
+        searchedFor: categoryId,
+        searchedForType: typeof categoryId,
+        availableCategories: availableIds
+      }
+    };
   }
   
-  const categoryName = categoryRow[1];
+  const categoryName = String(categoryRow[1]).trim();
   
   // Get products
   const prodSheet = getSheetByGid(ss, PRODUCTS_SHEET_GID);
@@ -464,7 +479,7 @@ function getProductsByCategory(categoryId) {
   // Filter products for this category
   const products = prodData
     .filter(prodRow => {
-      const productCategory = prodRow[1] ? prodRow[1].trim() : '';
+      const productCategory = prodRow[1] ? String(prodRow[1]).trim() : '';
       const activeValue = prodRow[9];
       const isActive = activeValue === true || activeValue === 'TRUE' || activeValue === 'true';
       return productCategory === categoryName && isActive;
@@ -482,11 +497,25 @@ function getProductsByCategory(categoryId) {
       supplier: prodRow[10] || undefined    // Supplier (K column)
     }));
   
+  // Include debug info if no products found
+  const debugInfo = products.length === 0 ? {
+    categoryNameSearched: categoryName,
+    totalProductRows: prodData.length,
+    sampleProductCategories: prodData.slice(0, 5).map(r => ({
+      code: r[0],
+      category: r[1],
+      categoryType: typeof r[1],
+      active: r[9],
+      activeType: typeof r[9]
+    }))
+  } : undefined;
+  
   return { 
     success: true, 
     categoryId: categoryId,
     categoryName: categoryName,
-    products: products 
+    products: products,
+    debug: debugInfo
   };
 }
 
