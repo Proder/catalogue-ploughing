@@ -94,10 +94,19 @@ export function ProductCard({ product, quantity, onQuantityChange }: ProductCard
                             {product.name}
                         </h3>
                     </div>
+                    {product.size != null && (
+                        <div className="mb-1 sm:mb-3">
+                            <p className="text-[10px] sm:text-xs text-neutral-600 leading-relaxed line-clamp-2 sm:block">
+                                <span className="font-bold">Size: {product.size}</span>
+                            </p>
+                        </div>
+                    )}
+                    <div className="mb-1 sm:mb-3">
+                        <p className="text-[10px] sm:text-xs text-neutral-600 leading-relaxed line-clamp-2 sm:block">
+                            {product.description}
+                        </p>
+                    </div>
 
-                    <p className="text-[10px] sm:text-xs text-neutral-600 leading-relaxed line-clamp-2 sm:block">
-                        {product.description}
-                    </p>
                 </div>
 
                 {/* Quantity Controls - Compact for mobile */}

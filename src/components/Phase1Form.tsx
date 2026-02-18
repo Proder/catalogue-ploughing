@@ -39,7 +39,7 @@ export function Phase1Form({ data, validationErrors, onChange, readOnly = false 
                                 Exhibition Footprint (Width x Depth) <span className="text-error-500">*</span>
                             </label>
                             <p className="text-xs text-neutral-500 mb-2">
-                                Needs to be free form. If complex, break down e.g. "3m x 2m AND 3m x 2m"
+                                If complex, break down e.g. "3m x 2m AND 3m x 2m"
                             </p>
                             <input
                                 type="text"
