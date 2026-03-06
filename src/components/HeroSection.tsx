@@ -25,15 +25,15 @@ export function HeroSection() {
                 </div>
 
                 {/* Heading */}
-                <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-4 sm:mb-6 tracking-tight leading-tight">
-                    Welcome to Our
-                    <span className="block text-accent-300 mt-2">Product Catalogue</span>
+                <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-4 tracking-tight leading-tight">
+                    Welcome to the National Ploughing
+                    <span className="block text-accent-300 mt-2">Championships 2026 Catalogue</span>
+                    <span className="block text-2xl sm:text-3xl mt-3 text-white/90">for the GOI Village</span>
                 </h1>
 
                 {/* App-Description */}
-                <p className="text-base sm:text-lg md:text-xl text-white/80 max-w-2xl mx-auto mb-6 sm:mb-10 leading-relaxed px-4">
-                    Browse our collection, select items, and submit your order with ease.
-                    Fast processing and seamless experience guaranteed.
+                <p className="text-base sm:text-lg md:text-xl text-white/80 max-w-3xl mx-auto mb-6 sm:mb-10 leading-relaxed px-4">
+                    This webpage has been created to help you easily submit your exhibit requirements. Please take a moment to review your details carefully before submitting.
                 </p>
 
                 {/* Stats
