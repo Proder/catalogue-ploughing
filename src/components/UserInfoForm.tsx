@@ -80,38 +80,45 @@ export function UserInfoForm({ userInfo, validationErrors, onChange, readOnly = 
                 </div>
 
                 {/* Email */}
-                <div className="space-y-2">
-                    <label htmlFor="email" className="block text-sm font-semibold text-neutral-700">
-                        Email Address - Lead <span className="text-error-500">*</span>
+                <div className="flex flex-col h-full">
+                    <label htmlFor="email" className="block text-sm font-semibold text-neutral-700 mb-1">
+                        Email Address - Primary Contact <span className="text-error-500">*</span>
                     </label>
-                    <input
-                        type="email"
-                        id="email"
-                        className={`input-field ${validationErrors.email ? 'input-error' : ''}`}
-                        value={userInfo.email}
-                        onChange={(e) => onChange('email', e.target.value)}
-                        placeholder="john@company.com"
-                        disabled={readOnly}
-                    />
-                    {validationErrors.email && (
-                        <p className="text-error-600 text-sm mt-1">{validationErrors.email}</p>
-                    )}
+                    <p className="text-xs text-neutral-500 mb-2">
+                        This will be your login for the Catalogue throughout the planning process
+                    </p>
+                    <div className="mt-auto">
+                        <input
+                            type="email"
+                            id="email"
+                            className={`input-field ${validationErrors.email ? 'input-error' : ''}`}
+                            value={userInfo.email}
+                            onChange={(e) => onChange('email', e.target.value)}
+                            placeholder="john@company.com"
+                            disabled={readOnly}
+                        />
+                        {validationErrors.email && (
+                            <p className="text-error-600 text-sm mt-1">{validationErrors.email}</p>
+                        )}
+                    </div>
                 </div>
 
                 {/* Mobile */}
-                <div className="space-y-2">
-                    <label htmlFor="mobile" className="block text-sm font-semibold text-neutral-700">
+                <div className="flex flex-col h-full">
+                    <label htmlFor="mobile" className="block text-sm font-semibold text-neutral-700 mb-1">
                         Mobile Number
                     </label>
-                    <input
-                        type="tel"
-                        id="mobile"
-                        className="input-field"
-                        value={userInfo.mobile || ''}
-                        onChange={(e) => onChange('mobile', e.target.value)}
-                        placeholder="+353 00 000 0000"
-                        disabled={readOnly}
-                    />
+                    <div className="mt-auto">
+                        <input
+                            type="tel"
+                            id="mobile"
+                            className="input-field"
+                            value={userInfo.mobile || ''}
+                            onChange={(e) => onChange('mobile', e.target.value)}
+                            placeholder="+353 00 000 0000"
+                            disabled={readOnly}
+                        />
+                    </div>
                 </div>
 
                 {/* Backup Name */}
@@ -155,7 +162,7 @@ export function UserInfoForm({ userInfo, validationErrors, onChange, readOnly = 
                 {/* Hub */}
                 <div className="space-y-2">
                     <label htmlFor="hub" className="block text-sm font-semibold text-neutral-700">
-                        Hub / Theme <span className="text-error-500">*</span>
+                        Hub / Independent <span className="text-error-500">*</span>
                     </label>
                     <select
                         id="hub"
@@ -177,7 +184,7 @@ export function UserInfoForm({ userInfo, validationErrors, onChange, readOnly = 
                 {/* Same Requirements (Full width) */}
                 <div className="col-span-1 md:col-span-2 space-y-2 bg-gray-50 p-4 rounded-lg border border-gray-200">
                     <label className="block text-sm font-semibold text-neutral-700 mb-2">
-                        Same requirements as last year? (Same stand size)
+                        Same requirements as NPC 2025? (Same stand size)
                     </label>
                     <div className="flex gap-4">
                         <label className="flex items-center gap-2 cursor-pointer">

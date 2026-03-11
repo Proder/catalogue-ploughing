@@ -1187,6 +1187,9 @@ function sendOrderConfirmation(payload, orderId, editToken) {
           <p style="font-size: 0.9em; color: #718096; margin-top: 20px;">
             Save this email for your records. The link will allow you to view your order details at any time.
           </p>
+          <p style="font-size: 0.9em; color: #718096; margin-top: 10px;">
+            *All costs are estimates until the final cost sheets are provided.
+          </p>
         </div>
         
         <div class="footer">
@@ -1211,6 +1214,8 @@ Order Items:
 ${payload.lineItems.map(item => `- ${item.productName} (${item.size}) x${item.quantity} = €${item.lineTotal.toFixed(2)}`).join('\n')}
 
 Total: €${payload.totals.total.toFixed(2)}
+
+*All costs are estimates until the final cost sheets are provided.
 
 Edit your order: ${editUrl}
   `;
@@ -1245,6 +1250,9 @@ function sendUpdateConfirmation(payload, orderId, editToken) {
           <p>Your order <strong>#${orderId}</strong> has been successfully updated.</p>
           <p>Total: <strong style="color: #667eea; font-size: 1.2em;">€${payload.totals.total.toFixed(2)}</strong></p>
           <p>You can view or edit your order again: <a href="${editUrl}">Edit Order</a></p>
+          <p style="font-size: 0.9em; color: #718096; margin-top: 10px;">
+            *All costs are estimates until the final cost sheets are provided.
+          </p>
         </div>
       </div>
     </body>

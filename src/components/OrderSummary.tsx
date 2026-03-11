@@ -106,12 +106,15 @@ export function OrderSummary({
                         )}
 
                         {/* Total */}
-                        <div className="rounded-xl bg-gradient-to-r from-primary-50 to-secondary-50 border-2 border-primary-200 p-4 sm:p-5 mb-6">
+                        <div className="rounded-xl bg-gradient-to-r from-primary-50 to-secondary-50 border-2 border-primary-200 p-4 sm:p-5 mb-2">
                             <div className="flex justify-between items-center">
-                                <span className="text-sm sm:text-base font-semibold text-neutral-700">Total</span>
+                                <span className="text-sm sm:text-base font-semibold text-neutral-700">Total Estimate</span>
                                 <span className="text-2xl sm:text-3xl font-bold text-primary-600">€{total.toFixed(2)}</span>
                             </div>
                         </div>
+                        <p className="text-xs text-neutral-500 italic text-center mb-6 px-2">
+                            *All costs are estimates until the final cost sheets are provided.
+                        </p>
 
                         {/* Validation Messages */}
                         {!isValid && itemCount === 0 && (
