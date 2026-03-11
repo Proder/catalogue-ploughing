@@ -36,7 +36,7 @@ export function HeroSection() {
                     This webpage has been created to help you easily submit your exhibit requirements. Please take a moment to review your details carefully before submitting.
                 </p>
 
-                {/* Stats
+                {/* Stats's
                 <div className="flex flex-wrap justify-center gap-4 max-w-md mx-auto">
                     <div className="flex-1 min-w-[100px] px-5 py-4 rounded-xl bg-white/10 backdrop-blur-sm">
                         <div className="text-3xl font-bold text-white">50+</div>
